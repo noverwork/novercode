@@ -14,9 +14,10 @@ interface ColumnProps {
   stage: Stage;
   tasks: Task[];
   onDeleteTask: (id: string) => void;
+  onTaskClick?: (id: string) => void;
 }
 
-export function Column({ stage, tasks, onDeleteTask }: ColumnProps) {
+export function Column({ stage, tasks, onDeleteTask, onTaskClick }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage,
   });
@@ -42,7 +43,13 @@ export function Column({ stage, tasks, onDeleteTask }: ColumnProps) {
       <ScrollArea className="flex-1 h-[calc(100vh-12rem)]">
         <div className="flex flex-col gap-2 p-2">
           {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onDelete={onDeleteTask} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              onDelete={onDeleteTask}
+              onClick={onTaskClick}
+              stage={stage}
+            />
           ))}
           {tasks.length === 0 && (
             <p className="text-xs text-green-900 text-center py-4 font-mono">

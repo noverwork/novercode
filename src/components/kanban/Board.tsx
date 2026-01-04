@@ -11,16 +11,23 @@ import {
 import { Column } from "./Column";
 import { TaskCardPreview } from "./TaskCard";
 import { AddTaskDialog } from "./AddTaskDialog";
+import { ClaudeTerminal } from "./ClaudeTerminal";
 import { useKanban } from "@/hooks/useKanban";
 
 export function Board() {
   const { tasks, addTask, deleteTask, moveTask, getTasksByStage, stages } =
     useKanban();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [llmTaskId, setLlmTaskId] = useState<string | null>(null);
 
   const activeTask = useMemo(
     () => tasks.find((task) => task.id === activeId) || null,
     [tasks, activeId]
+  );
+
+  const llmTask = useMemo(
+    () => tasks.find((task) => task.id === llmTaskId) || null,
+    [tasks, llmTaskId]
   );
 
   const sensors = useSensors(
@@ -45,6 +52,14 @@ export function Board() {
     const newStage = over.id as typeof stages[number];
 
     moveTask(taskId, newStage);
+  };
+
+  const handleTaskClick = (taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    // Only open LLM drawer for planning stage tasks
+    if (task && task.stage === "planning") {
+      setLlmTaskId(taskId);
+    }
   };
 
   return (
@@ -74,6 +89,7 @@ export function Board() {
                 stage={stage}
                 tasks={getTasksByStage(stage)}
                 onDeleteTask={deleteTask}
+                onTaskClick={handleTaskClick}
               />
             ))}
           </div>
@@ -98,6 +114,12 @@ export function Board() {
           <span className="cursor-blink">█</span>
         </span>
       </footer>
+
+      {/* Claude Terminal */}
+      <ClaudeTerminal
+        open={llmTask !== null}
+        onOpenChange={(open) => !open && setLlmTaskId(null)}
+      />
     </div>
   );
 }
