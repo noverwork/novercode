@@ -14,6 +14,15 @@ interface ClaudeTerminalProps {
 // 全局 PTY 緩存 - 保持 PTY 進程在組件重新渲染時存活
 const ptyCache = new Map<string, IPty>();
 
+// 關閉指定 taskId 的 PTY
+export function killPty(taskId: string): void {
+  const pty = ptyCache.get(taskId);
+  if (pty) {
+    pty.kill();
+    ptyCache.delete(taskId);
+  }
+}
+
 export function ClaudeTerminal({ taskId, workingDir }: ClaudeTerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);

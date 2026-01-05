@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TaskCard } from "./TaskCard";
 import { AddTaskDialog } from "./AddTaskDialog";
-import { ClaudeTerminal } from "./ClaudeTerminal";
+import { ClaudeTerminal, killPty } from "./ClaudeTerminal";
 import { useKanban } from "@/hooks/useKanban";
 
 export function Board() {
@@ -42,7 +42,13 @@ export function Board() {
                   key={task.id}
                   task={task}
                   selected={task.id === selectedTaskId}
-                  onDelete={deleteTask}
+                  onDelete={(id) => {
+                    killPty(id);
+                    if (selectedTaskId === id) {
+                      setSelectedTaskId(null);
+                    }
+                    deleteTask(id);
+                  }}
                   onClick={setSelectedTaskId}
                 />
               ))
