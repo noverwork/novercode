@@ -1,37 +1,67 @@
 import { useEffect, useRef, useCallback } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
-import { spawn, IPty } from "tauri-pty";
 import "@xterm/xterm/css/xterm.css";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Terminal as TerminalIcon, X, RotateCcw } from "lucide-react";
+import { Terminal as TerminalIcon, RotateCcw, Plus } from "lucide-react";
+import { ptyManager } from "@/lib/pty-manager";
 
 interface ClaudeTerminalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  taskId: string;
   workingDir?: string;
 }
 
-export function ClaudeTerminal({
-  open,
-  onOpenChange,
-  workingDir,
-}: ClaudeTerminalProps) {
+export function ClaudeTerminal({ taskId, workingDir }: ClaudeTerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
-  const ptyRef = useRef<IPty | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
+  const currentTaskIdRef = useRef<string | null>(null);
+
+  const connectToPty = useCallback(() => {
+    if (!termRef.current || !taskId) return;
+
+    const term = termRef.current;
+
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+    }
+
+    const isNew = !ptyManager.has(taskId);
+    ptyManager.getOrCreate(taskId, { workingDir });
+
+    if (isNew) {
+      term.writeln("\x1b[33m[Starting new Claude Code session...]\x1b[0m");
+    } else {
+      term.writeln("\x1b[33m[Reconnecting to session...]\x1b[0m");
+      const buffer = ptyManager.getBuffer(taskId);
+      buffer.forEach((chunk) => term.write(chunk));
+    }
+
+    unsubscribeRef.current = ptyManager.subscribe(taskId, (data) => {
+      term.write(data);
+    });
+
+    const disposable = term.onData((data) => {
+      ptyManager.write(taskId, data);
+    });
+
+    ptyManager.resize(taskId, term.cols, term.rows);
+
+    return () => {
+      disposable.dispose();
+    };
+  }, [taskId, workingDir]);
 
   const initTerminal = useCallback(() => {
-    if (!terminalRef.current || termRef.current) return;
+    if (!terminalRef.current) return;
 
-    // 創建 xterm 實例
+    // 清理舊終端
+    if (termRef.current) {
+      termRef.current.dispose();
+      termRef.current = null;
+    }
+
     const term = new Terminal({
       cursorBlink: true,
       fontSize: 13,
@@ -69,175 +99,112 @@ export function ClaudeTerminal({
     termRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    // 啟動 Claude Code
-    startClaude(term);
-
-    // 監聽視窗大小變化
     const handleResize = () => {
-      if (fitAddonRef.current && ptyRef.current) {
+      if (fitAddonRef.current && taskId) {
         fitAddonRef.current.fit();
-        ptyRef.current.resize(term.cols, term.rows);
+        if (termRef.current) {
+          ptyManager.resize(taskId, termRef.current.cols, termRef.current.rows);
+        }
       }
     };
     window.addEventListener("resize", handleResize);
 
+    connectToPty();
+
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [workingDir]);
+  }, [taskId, connectToPty]);
 
-  const startClaude = useCallback(
-    (term: Terminal) => {
-      // 清理舊的 PTY
-      if (ptyRef.current) {
-        ptyRef.current.kill();
-        ptyRef.current = null;
-      }
-
-      try {
-        console.log("[ClaudeTerminal] Starting claude...", { cols: term.cols, rows: term.rows });
-        term.writeln("\x1b[33m[Starting Claude Code...]\x1b[0m");
-
-        // 用 shell 啟動 claude，確保 PATH 正確
-        const shell = "/bin/zsh";
-        const pty = spawn(shell, ["-l", "-c", "claude"], {
-          cols: term.cols,
-          rows: term.rows,
-          cwd: workingDir || undefined,
-          env: {
-            TERM: "xterm-256color",
-            COLORTERM: "truecolor",
-          },
-        });
-
-        console.log("[ClaudeTerminal] PTY spawned, pid:", pty.pid);
-        ptyRef.current = pty;
-
-        // PTY 輸出 → xterm
-        pty.onData((data: unknown) => {
-          console.log("[PTY data]", typeof data, data);
-          try {
-            if (typeof data === "string") {
-              term.write(data);
-            } else if (data instanceof Uint8Array) {
-              term.write(new TextDecoder().decode(data));
-            } else if (Array.isArray(data)) {
-              // 可能是數字陣列
-              term.write(new TextDecoder().decode(new Uint8Array(data)));
-            } else {
-              // fallback: 嘗試轉字串
-              term.write(String(data));
-            }
-          } catch (e) {
-            console.error("[PTY decode error]", e);
-          }
-        });
-
-        // xterm 輸入 → PTY
-        term.onData((data: string) => {
-          pty.write(data);
-        });
-
-        // PTY 退出
-        pty.onExit(({ exitCode }) => {
-          term.writeln("");
-          term.writeln(
-            `\x1b[90m[Process exited with code ${exitCode}]\x1b[0m`
-          );
-          term.writeln("\x1b[90m[Press any key to restart Claude]\x1b[0m");
-
-          // 等待按鍵重啟
-          const disposable = term.onData(() => {
-            disposable.dispose();
-            term.clear();
-            startClaude(term);
-          });
-        });
-      } catch (error) {
-        term.writeln(`\x1b[31m[Error] Failed to start Claude: ${error}\x1b[0m`);
-        term.writeln("\x1b[90mMake sure Claude CLI is installed: npm install -g @anthropic-ai/claude-code\x1b[0m");
-      }
-    },
-    [workingDir]
-  );
-
-  // 當 drawer 打開時初始化終端
   useEffect(() => {
-    if (open) {
-      // 延遲初始化以確保 DOM 已渲染
+    if (!taskId) return;
+
+    // taskId 變化時重新初始化
+    if (currentTaskIdRef.current !== taskId) {
+      currentTaskIdRef.current = taskId;
+
       const timer = setTimeout(() => {
         initTerminal();
-        // 再次 fit 確保尺寸正確
         setTimeout(() => {
           fitAddonRef.current?.fit();
         }, 100);
       }, 50);
 
       return () => clearTimeout(timer);
-    } else {
-      // 關閉時清理
-      if (ptyRef.current) {
-        ptyRef.current.kill();
-        ptyRef.current = null;
+    }
+  }, [taskId, initTerminal]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
       }
       if (termRef.current) {
         termRef.current.dispose();
-        termRef.current = null;
       }
-      fitAddonRef.current = null;
-    }
-  }, [open, initTerminal]);
+    };
+  }, []);
 
-  const handleRestart = () => {
-    if (termRef.current) {
+  const handleNewSession = () => {
+    if (termRef.current && taskId) {
       termRef.current.clear();
-      startClaude(termRef.current);
+      ptyManager.restart(taskId, { workingDir });
+      termRef.current.writeln("\x1b[33m[Starting new Claude Code session...]\x1b[0m");
+
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+      unsubscribeRef.current = ptyManager.subscribe(taskId, (data) => {
+        termRef.current?.write(data);
+      });
+    }
+  };
+
+  const handleReconnect = () => {
+    if (termRef.current && taskId) {
+      termRef.current.clear();
+      connectToPty();
     }
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        overlay={false}
-        className="w-[600px] sm:max-w-[600px] bg-[#0a0a0a] border-l border-green-900 p-0"
-      >
-        <div className="h-full flex flex-col">
-          {/* Header */}
-          <SheetHeader className="border-b border-green-900 px-4 py-3 flex flex-row items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TerminalIcon className="h-4 w-4 text-green-600" />
-              <SheetTitle className="text-green-500 text-sm font-mono">
-                claude
-              </SheetTitle>
-            </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleRestart}
-                className="text-green-800 hover:text-green-500 hover:bg-green-900/20 h-8 w-8"
-                title="Restart Claude"
-              >
-                <RotateCcw className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onOpenChange(false)}
-                className="text-green-800 hover:text-green-500 hover:bg-green-900/20 h-8 w-8"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </SheetHeader>
-
-          {/* Terminal Container */}
-          <div className="flex-1 p-2 overflow-hidden">
-            <div ref={terminalRef} className="h-full w-full" />
-          </div>
+    <div className="h-full flex flex-col bg-[#0a0a0a]">
+      {/* Header */}
+      <div className="border-b border-green-900 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <TerminalIcon className="h-4 w-4 text-green-600" />
+          <span className="text-green-500 text-sm font-mono">claude</span>
+          {ptyManager.has(taskId) && (
+            <span className="text-xs text-green-700">[running]</span>
+          )}
         </div>
-      </SheetContent>
-    </Sheet>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleNewSession}
+            className="text-green-800 hover:text-green-500 hover:bg-green-900/20 h-8 w-8"
+            title="New Session"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleReconnect}
+            className="text-green-800 hover:text-green-500 hover:bg-green-900/20 h-8 w-8"
+            title="Reconnect"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Terminal */}
+      <div className="flex-1 p-2 overflow-hidden">
+        <div ref={terminalRef} className="h-full w-full" />
+      </div>
+    </div>
   );
 }

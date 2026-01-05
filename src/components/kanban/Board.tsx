@@ -1,66 +1,12 @@
-import { useState, useMemo } from "react";
-import {
-  DndContext,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import { Column } from "./Column";
-import { TaskCardPreview } from "./TaskCard";
+import { useState } from "react";
+import { TaskCard } from "./TaskCard";
 import { AddTaskDialog } from "./AddTaskDialog";
 import { ClaudeTerminal } from "./ClaudeTerminal";
 import { useKanban } from "@/hooks/useKanban";
 
 export function Board() {
-  const { tasks, addTask, deleteTask, moveTask, getTasksByStage, stages } =
-    useKanban();
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [llmTaskId, setLlmTaskId] = useState<string | null>(null);
-
-  const activeTask = useMemo(
-    () => tasks.find((task) => task.id === activeId) || null,
-    [tasks, activeId]
-  );
-
-  const llmTask = useMemo(
-    () => tasks.find((task) => task.id === llmTaskId) || null,
-    [tasks, llmTaskId]
-  );
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
-
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
-
-    if (!over) return;
-
-    const taskId = active.id as string;
-    const newStage = over.id as typeof stages[number];
-
-    moveTask(taskId, newStage);
-  };
-
-  const handleTaskClick = (taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId);
-    // Only open LLM drawer for planning stage tasks
-    if (task && task.stage === "planning") {
-      setLlmTaskId(taskId);
-    }
-  };
+  const { tasks, addTask, deleteTask } = useKanban();
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   return (
     <div className="h-screen flex flex-col bg-black">
@@ -75,32 +21,40 @@ export function Board() {
         <AddTaskDialog onAdd={addTask} />
       </header>
 
-      {/* Main Board */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden p-6">
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="flex gap-4 h-full">
-            {stages.map((stage) => (
-              <Column
-                key={stage}
-                stage={stage}
-                tasks={getTasksByStage(stage)}
-                onDeleteTask={deleteTask}
-                onTaskClick={handleTaskClick}
-              />
-            ))}
-          </div>
-          <DragOverlay>
-            {activeTask && (
-              <div className="opacity-90 cursor-grabbing">
-                <TaskCardPreview task={activeTask} />
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Task List - Left */}
+        <div className="w-80 border-r border-green-900 overflow-auto p-4">
+          <div className="space-y-3">
+            {tasks.length === 0 ? (
+              <div className="text-center py-12 text-green-800 font-mono">
+                <p>no tasks</p>
+                <p className="text-xs mt-2">click [+ NEW]</p>
               </div>
+            ) : (
+              tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  selected={task.id === selectedTaskId}
+                  onDelete={deleteTask}
+                  onClick={setSelectedTaskId}
+                />
+              ))
             )}
-          </DragOverlay>
-        </DndContext>
+          </div>
+        </div>
+
+        {/* Terminal - Right */}
+        <div className="flex-1 flex flex-col">
+          {selectedTaskId ? (
+            <ClaudeTerminal taskId={selectedTaskId} />
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-green-800 font-mono">
+              <p>select a task to start</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Status Bar */}
@@ -114,12 +68,6 @@ export function Board() {
           <span className="cursor-blink">█</span>
         </span>
       </footer>
-
-      {/* Claude Terminal */}
-      <ClaudeTerminal
-        open={llmTask !== null}
-        onOpenChange={(open) => !open && setLlmTaskId(null)}
-      />
     </div>
   );
 }
