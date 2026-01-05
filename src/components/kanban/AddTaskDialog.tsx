@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 
 interface AddTaskDialogProps {
-  onAdd: (title: string, description: string) => void;
+  onAdd: (title: string, description: string) => void | Promise<void> | Promise<string>;
 }
 
 export function AddTaskDialog({ onAdd }: AddTaskDialogProps) {
@@ -22,10 +22,10 @@ export function AddTaskDialog({ onAdd }: AddTaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (title.trim()) {
-      onAdd(title.trim(), description.trim());
+      await onAdd(title.trim(), description.trim());
       setTitle("");
       setDescription("");
       setOpen(false);
