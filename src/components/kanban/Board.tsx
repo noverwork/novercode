@@ -18,7 +18,12 @@ export function Board() {
         <h1 className="text-xl font-bold text-green-500 text-glow">
           [ NOVERCODE ]
         </h1>
-        <AddTaskDialog onAdd={addTask} />
+        <AddTaskDialog
+          onAdd={(title, description) => {
+            const newId = addTask(title, description);
+            setSelectedTaskId(newId);
+          }}
+        />
       </header>
 
       {/* Main Content */}

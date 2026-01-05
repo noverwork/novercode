@@ -9,13 +9,11 @@ export interface Task {
 export function useKanban() {
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  const addTask = (title: string, description: string) => {
-    const newTask: Task = {
-      id: crypto.randomUUID(),
-      title,
-      description,
-    };
+  const addTask = (title: string, description: string): string => {
+    const id = crypto.randomUUID();
+    const newTask: Task = { id, title, description };
     setTasks((prev) => [...prev, newTask]);
+    return id;
   };
 
   const deleteTask = (id: string) => {
