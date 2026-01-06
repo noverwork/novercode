@@ -1,5 +1,6 @@
 pub mod claude;
 pub mod store;
+pub mod terminal;
 pub mod worktree;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -132,6 +133,10 @@ pub fn run() {
             worktree::create_worktree,
             worktree::remove_worktree,
             worktree::get_task_working_dir,
+            terminal::terminal_create,
+            terminal::terminal_write,
+            terminal::terminal_resize,
+            terminal::terminal_kill,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

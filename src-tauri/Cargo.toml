@@ -27,4 +27,8 @@ tauri-plugin-pty = "0.2.0"
 tauri-plugin-store = "2.4.1"
 tauri-plugin-dialog = "2.4.2"
 uuid = { version = "1.19.0", features = ["v4"] }
+alacritty_terminal = "0.25"
+portable-pty = "0.8"
+parking_lot = "0.12"
+lazy_static = "1.4"
 

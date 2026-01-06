@@ -3,11 +3,20 @@ import { invoke } from "@tauri-apps/api/core";
 import { TaskCard } from "./TaskCard";
 import { AddTaskDialog } from "./AddTaskDialog";
 import { AddProjectDialog } from "./AddProjectDialog";
-import { ClaudeTerminal, killPty } from "./ClaudeTerminal";
+import { CanvasTerminal } from "./CanvasTerminal";
 import { DiffView } from "./DiffView";
 import { useKanban } from "@/hooks/useKanban";
 import { Folder, Trash2, Loader2, ChevronLeft, ChevronRight, Terminal, GitCompare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// Kill terminal helper
+async function killTerminal(taskId: string) {
+  try {
+    await invoke("terminal_kill", { id: taskId });
+  } catch (e) {
+    console.error("Failed to kill terminal:", e);
+  }
+}
 
 export function Board() {
   const {
@@ -64,7 +73,7 @@ export function Board() {
 
   // 刪除 task 時也移除 worktree
   const handleDeleteTask = async (id: string) => {
-    killPty(id);
+    await killTerminal(id);
     if (selectedTaskId === id) {
       setSelectedTaskId(null);
       setWorkingDir(null);
@@ -84,15 +93,15 @@ export function Board() {
     await deleteTask(id);
   };
 
-  // 刪除 project 時也要 kill 相關的 PTY 和移除 worktrees
+  // 刪除 project 時也要 kill 相關的 terminal 和移除 worktrees
   const handleDeleteProject = async (projectId: string) => {
     const projectTasks = getTasksByProject(projectId);
     const project = projects.find((p) => p.id === projectId);
 
-    // Kill PTYs 和移除 worktrees
+    // Kill terminals 和移除 worktrees
     if (project) {
       for (const t of projectTasks) {
-        killPty(t.id);
+        await killTerminal(t.id);
         try {
           await invoke("remove_worktree", {
             taskId: t.id,
@@ -253,7 +262,7 @@ export function Board() {
           {selectedTaskId && isWorktreeReady ? (
             <>
               {/* Tabs */}
-              <div className="h-9 border-b border-green-900 flex items-center px-2 gap-1">
+              <div className="h-9 flex items-center px-2 gap-1">
                 <button
                   onClick={() => setActiveTab("claude")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-xs transition-colors ${
@@ -281,7 +290,7 @@ export function Board() {
               {/* Content */}
               <div className="flex-1 overflow-hidden">
                 {activeTab === "claude" ? (
-                  <ClaudeTerminal
+                  <CanvasTerminal
                     taskId={selectedTaskId}
                     workingDir={workingDir || undefined}
                   />
