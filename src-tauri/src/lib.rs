@@ -1,13 +1,6 @@
-pub mod claude;
 pub mod store;
 pub mod terminal;
 pub mod worktree;
-
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
 
 use serde::Serialize;
 
@@ -106,7 +99,6 @@ fn open_folder(path: String) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_pty::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .manage(store::StoreState::default())
@@ -115,14 +107,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            greet,
             open_folder,
             get_changed_files,
             get_file_diff,
-            claude::check_claude_installed,
-            claude::check_claude_auth,
-            claude::send_claude_message,
-            claude::stream_claude_message,
             store::get_projects,
             store::add_project,
             store::delete_project,
