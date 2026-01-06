@@ -207,16 +207,20 @@ export function DiffView({ workingDir }: DiffViewProps) {
       const result = await invoke<ChangedFile[]>("get_changed_files", { path: workingDir });
       setFiles(result);
       expandAllFolders(result);
-      if (result.length > 0 && !selectedFile) {
-        setSelectedFile(result[0].path);
-      }
+      // 只有在沒有選擇檔案時才自動選擇第一個
+      setSelectedFile((prev) => {
+        if (!prev && result.length > 0) {
+          return result[0].path;
+        }
+        return prev;
+      });
     } catch (e) {
       console.error("Failed to get changed files:", e);
       setFiles([]);
     } finally {
       setIsLoading(false);
     }
-  }, [workingDir, selectedFile, expandAllFolders]);
+  }, [workingDir, expandAllFolders]);
 
   const fetchFileDiff = useCallback(async () => {
     if (!workingDir || !selectedFile) {

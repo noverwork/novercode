@@ -14,7 +14,7 @@ import { FolderPlus, FolderOpen } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 
 interface AddProjectDialogProps {
-  onAdd: (name: string, path?: string) => void | Promise<string>;
+  onAdd: (name: string, path?: string, baseBranch?: string) => void | Promise<string>;
 }
 
 // 從 path 提取名稱
@@ -33,14 +33,16 @@ function extractName(path: string): string {
 export function AddProjectDialog({ onAdd }: AddProjectDialogProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [path, setPath] = useState("");
+  const [baseBranch, setBaseBranch] = useState("main");
 
   const derivedName = path.trim() ? extractName(path.trim()) : "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (derivedName) {
-      await onAdd(derivedName, path.trim() || undefined);
+      await onAdd(derivedName, path.trim() || undefined, baseBranch.trim() || undefined);
       setPath("");
+      setBaseBranch("main");
       setDialogOpen(false);
     }
   };
@@ -106,6 +108,18 @@ export function AddProjectDialog({ onAdd }: AddProjectDialogProps) {
                 <span className="text-green-500">{derivedName}</span>
               </div>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="baseBranch" className="text-green-700 text-xs">
+                $ base_branch =
+              </Label>
+              <Input
+                id="baseBranch"
+                value={baseBranch}
+                onChange={(e) => setBaseBranch(e.target.value)}
+                placeholder="main"
+                className="bg-black border border-green-900 text-green-500 placeholder:text-green-900 focus:border-green-500 font-mono"
+              />
+            </div>
           </div>
           <DialogFooter className="gap-2">
             <Button

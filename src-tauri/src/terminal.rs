@@ -70,7 +70,7 @@ struct TerminalSession {
     dirty: Arc<std::sync::atomic::AtomicBool>,
 }
 
-/// Global terminal sessions storage
+// Global terminal sessions storage
 lazy_static::lazy_static! {
     static ref SESSIONS: Mutex<HashMap<String, TerminalSession>> = Mutex::new(HashMap::new());
     static ref DIRTY_FLAGS: Mutex<HashMap<String, Arc<std::sync::atomic::AtomicBool>>> = Mutex::new(HashMap::new());
@@ -286,7 +286,7 @@ pub async fn terminal_create(
 
     // Create PTY
     let pty = tty::new(&pty_config, window_size, 0)
-        .map_err(|e| format!("Failed to create PTY: {}", e))?;
+        .map_err(|e| format!("Failed to create PTY: {e}"))?;
 
     // Event listener for event loop
     let event_listener = TauriEventListener {
@@ -296,7 +296,7 @@ pub async fn terminal_create(
 
     // Create event loop
     let event_loop = EventLoop::new(term.clone(), event_listener, pty, false, false)
-        .map_err(|e| format!("Failed to create event loop: {}", e))?;
+        .map_err(|e| format!("Failed to create event loop: {e}"))?;
 
     let sender = event_loop.channel();
     let running = Arc::new(std::sync::atomic::AtomicBool::new(true));
@@ -328,28 +328,22 @@ pub async fn terminal_create(
     });
 
     // Spawn render loop
-    let term_render = term.clone();
-    let id_render = id.clone();
-    let app_render = app_handle.clone();
-    let running_render = running.clone();
-    let dirty_render = dirty.clone();
-
     std::thread::spawn(move || {
-        while running_render.load(std::sync::atomic::Ordering::Relaxed) {
+        while running.load(std::sync::atomic::Ordering::Relaxed) {
             std::thread::sleep(std::time::Duration::from_millis(16)); // ~60fps
 
             // Only render if dirty
-            if !dirty_render.swap(false, std::sync::atomic::Ordering::Relaxed) {
+            if !dirty.swap(false, std::sync::atomic::Ordering::Relaxed) {
                 continue;
             }
 
             let grid = {
-                let term = term_render.lock();
-                extract_grid(&term, &id_render)
+                let t = term.lock();
+                extract_grid(&t, &id)
             };
 
-            if app_render
-                .emit(&format!("terminal-render-{}", id_render), &grid)
+            if app_handle
+                .emit(&format!("terminal-render-{id}"), &grid)
                 .is_err()
             {
                 break;
@@ -370,7 +364,7 @@ pub fn terminal_write(id: String, data: Vec<u8>) -> Result<(), String> {
     session
         .sender
         .send(Msg::Input(data.into()))
-        .map_err(|e| format!("Failed to send input: {:?}", e))?;
+        .map_err(|e| format!("Failed to send input: {e:?}"))?;
 
     Ok(())
 }
@@ -392,7 +386,7 @@ pub fn terminal_resize(id: String, cols: u16, rows: u16) -> Result<(), String> {
     session
         .sender
         .send(Msg::Resize(size))
-        .map_err(|e| format!("Failed to resize: {:?}", e))?;
+        .map_err(|e| format!("Failed to resize: {e:?}"))?;
 
     // Also resize the term
     {

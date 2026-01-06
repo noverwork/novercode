@@ -46,7 +46,7 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isRunning, setIsRunning] = useState(false);
-  const [isComposing, setIsComposing] = useState(false);
+  const isComposingRef = useRef(false);
   const gridRef = useRef<TerminalGrid | null>(null);
   const hasRenderedRef = useRef(false);
 
@@ -227,7 +227,7 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
   const handleKeyDown = useCallback(
     async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       // Don't handle if composing (IME)
-      if (isComposing) return;
+      if (isComposingRef.current) return;
 
       let data: number[] = [];
       let handled = false;
@@ -308,7 +308,7 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
         }
       }
     },
-    [taskId, isComposing]
+    [taskId]
   );
 
   // 處理文字輸入 (包括 IME)
@@ -316,7 +316,7 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
     async (e: React.FormEvent<HTMLTextAreaElement>) => {
       const target = e.target as HTMLTextAreaElement;
       const value = target.value;
-      if (value && !isComposing) {
+      if (value && !isComposingRef.current) {
         const data = Array.from(new TextEncoder().encode(value));
         try {
           await invoke("terminal_write", { id: taskId, data });
@@ -326,17 +326,17 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
         target.value = ""; // Clear after sending
       }
     },
-    [taskId, isComposing]
+    [taskId]
   );
 
   // IME composition handlers
   const handleCompositionStart = useCallback(() => {
-    setIsComposing(true);
+    isComposingRef.current = true;
   }, []);
 
   const handleCompositionEnd = useCallback(
     async (e: React.CompositionEvent<HTMLTextAreaElement>) => {
-      setIsComposing(false);
+      isComposingRef.current = false;
       const target = e.target as HTMLTextAreaElement;
       const value = target.value;
       if (value) {

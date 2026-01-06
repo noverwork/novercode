@@ -1,17 +1,24 @@
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard, PoisonError};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_store::StoreExt;
+
+// 處理 mutex poison：即使 poisoned 也取得 guard（資料可能不一致但不會 panic）
+fn lock_or_recover<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
 
 const STORE_FILE: &str = "data.json";
 const PROJECTS_KEY: &str = "projects";
 const TASKS_KEY: &str = "tasks";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Project {
     pub id: String,
     pub name: String,
     pub path: Option<String>,
+    pub base_branch: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,21 +40,21 @@ pub struct StoreState {
 pub fn init_store(app: &AppHandle) -> Result<(), String> {
     let store = app
         .store(STORE_FILE)
-        .map_err(|e| format!("Failed to open store: {}", e))?;
+        .map_err(|e| format!("Failed to open store: {e}"))?;
 
     let state = app.state::<StoreState>();
 
     // 載入 projects
     if let Some(projects) = store.get(PROJECTS_KEY) {
-        if let Ok(projects) = serde_json::from_value::<Vec<Project>>(projects.clone()) {
-            *state.projects.lock().unwrap() = projects;
+        if let Ok(projects) = serde_json::from_value::<Vec<Project>>(projects) {
+            *lock_or_recover(&state.projects) = projects;
         }
     }
 
     // 載入 tasks
     if let Some(tasks) = store.get(TASKS_KEY) {
-        if let Ok(tasks) = serde_json::from_value::<Vec<Task>>(tasks.clone()) {
-            *state.tasks.lock().unwrap() = tasks;
+        if let Ok(tasks) = serde_json::from_value::<Vec<Task>>(tasks) {
+            *lock_or_recover(&state.tasks) = tasks;
         }
     }
 
@@ -58,10 +65,10 @@ pub fn init_store(app: &AppHandle) -> Result<(), String> {
 fn save_to_store(app: &AppHandle, state: &State<StoreState>) -> Result<(), String> {
     let store = app
         .store(STORE_FILE)
-        .map_err(|e| format!("Failed to open store: {}", e))?;
+        .map_err(|e| format!("Failed to open store: {e}"))?;
 
-    let projects = state.projects.lock().unwrap().clone();
-    let tasks = state.tasks.lock().unwrap().clone();
+    let projects = lock_or_recover(&state.projects).clone();
+    let tasks = lock_or_recover(&state.tasks).clone();
 
     store.set(
         PROJECTS_KEY,
@@ -71,7 +78,7 @@ fn save_to_store(app: &AppHandle, state: &State<StoreState>) -> Result<(), Strin
         TASKS_KEY,
         serde_json::to_value(&tasks).map_err(|e| e.to_string())?,
     );
-    store.save().map_err(|e| format!("Failed to save: {}", e))?;
+    store.save().map_err(|e| format!("Failed to save: {e}"))?;
 
     Ok(())
 }
@@ -80,7 +87,7 @@ fn save_to_store(app: &AppHandle, state: &State<StoreState>) -> Result<(), Strin
 
 #[tauri::command]
 pub fn get_projects(state: State<StoreState>) -> Vec<Project> {
-    state.projects.lock().unwrap().clone()
+    lock_or_recover(&state.projects).clone()
 }
 
 #[tauri::command]
@@ -89,14 +96,16 @@ pub fn add_project(
     state: State<StoreState>,
     name: String,
     path: Option<String>,
+    base_branch: Option<String>,
 ) -> Result<Project, String> {
     let project = Project {
         id: uuid::Uuid::new_v4().to_string(),
         name,
         path,
+        base_branch,
     };
 
-    state.projects.lock().unwrap().push(project.clone());
+    lock_or_recover(&state.projects).push(project.clone());
     save_to_store(&app, &state)?;
 
     Ok(project)
@@ -108,14 +117,8 @@ pub fn delete_project(
     state: State<StoreState>,
     id: String,
 ) -> Result<(), String> {
-    {
-        let mut projects = state.projects.lock().unwrap();
-        projects.retain(|p| p.id != id);
-    }
-    {
-        let mut tasks = state.tasks.lock().unwrap();
-        tasks.retain(|t| t.project_id != id);
-    }
+    lock_or_recover(&state.projects).retain(|p| p.id != id);
+    lock_or_recover(&state.tasks).retain(|t| t.project_id != id);
     save_to_store(&app, &state)?;
     Ok(())
 }
@@ -124,15 +127,12 @@ pub fn delete_project(
 
 #[tauri::command]
 pub fn get_tasks(state: State<StoreState>) -> Vec<Task> {
-    state.tasks.lock().unwrap().clone()
+    lock_or_recover(&state.tasks).clone()
 }
 
 #[tauri::command]
 pub fn get_tasks_by_project(state: State<StoreState>, project_id: String) -> Vec<Task> {
-    state
-        .tasks
-        .lock()
-        .unwrap()
+    lock_or_recover(&state.tasks)
         .iter()
         .filter(|t| t.project_id == project_id)
         .cloned()
@@ -154,7 +154,7 @@ pub fn add_task(
         description,
     };
 
-    state.tasks.lock().unwrap().push(task.clone());
+    lock_or_recover(&state.tasks).push(task.clone());
     save_to_store(&app, &state)?;
 
     Ok(task)
@@ -166,10 +166,7 @@ pub fn delete_task(
     state: State<StoreState>,
     id: String,
 ) -> Result<(), String> {
-    {
-        let mut tasks = state.tasks.lock().unwrap();
-        tasks.retain(|t| t.id != id);
-    }
+    lock_or_recover(&state.tasks).retain(|t| t.id != id);
     save_to_store(&app, &state)?;
     Ok(())
 }

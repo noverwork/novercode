@@ -5,6 +5,7 @@ export interface Project {
   id: string;
   name: string;
   path?: string;
+  baseBranch?: string;
 }
 
 export interface Task {
@@ -42,8 +43,8 @@ export function useKanban() {
   }, []);
 
   // Project operations
-  const addProject = useCallback(async (name: string, path?: string): Promise<string> => {
-    const project = await invoke<Project>("add_project", { name, path });
+  const addProject = useCallback(async (name: string, path?: string, baseBranch?: string): Promise<string> => {
+    const project = await invoke<Project>("add_project", { name, path, baseBranch });
     setProjects((prev) => [...prev, project]);
     setCurrentProjectId(project.id);
     return project.id;
@@ -51,15 +52,16 @@ export function useKanban() {
 
   const deleteProject = useCallback(async (id: string) => {
     await invoke("delete_project", { id });
-    setProjects((prev) => prev.filter((p) => p.id !== id));
+    setProjects((prev) => {
+      const remaining = prev.filter((p) => p.id !== id);
+      // 如果刪除的是當前選中的 project，選擇下一個
+      if (currentProjectId === id) {
+        setCurrentProjectId(remaining.length > 0 ? remaining[0].id : null);
+      }
+      return remaining;
+    });
     setTasks((prev) => prev.filter((t) => t.projectId !== id));
-    if (currentProjectId === id) {
-      setCurrentProjectId(() => {
-        const remaining = projects.filter((p) => p.id !== id);
-        return remaining.length > 0 ? remaining[0].id : null;
-      });
-    }
-  }, [currentProjectId, projects]);
+  }, [currentProjectId]);
 
   // Task operations
   const addTask = useCallback(async (title: string, description: string): Promise<string> => {

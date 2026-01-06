@@ -59,6 +59,7 @@ export function Board() {
           taskId: selectedTaskId,
           projectName: currentProject.name,
           projectPath: currentProject.path,
+          baseBranch: currentProject.baseBranch,
         });
         setWorkingDir(path);
       } catch (e) {
@@ -69,7 +70,7 @@ export function Board() {
     };
 
     setupWorktree();
-  }, [selectedTaskId, currentProject?.path, currentProject?.name]);
+  }, [selectedTaskId, currentProject?.path, currentProject?.name, currentProject?.baseBranch]);
 
   // 刪除 task 時也移除 worktree
   const handleDeleteTask = async (id: string) => {

@@ -7,7 +7,7 @@ fn get_worktrees_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let app_data = app
         .path()
         .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+        .map_err(|e| format!("Failed to get app data dir: {e}"))?;
     Ok(app_data.join("worktrees"))
 }
 
@@ -22,6 +22,18 @@ fn is_git_repo(path: &str) -> bool {
     git_dir.exists()
 }
 
+/// 嘗試執行 git worktree add 命令
+fn try_worktree_add(project_path: &str, args: &[&str]) -> Result<bool, String> {
+    let output = Command::new("git")
+        .current_dir(project_path)
+        .arg("worktree")
+        .arg("add")
+        .args(args)
+        .output()
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+    Ok(output.status.success())
+}
+
 /// 建立 git worktree
 #[tauri::command]
 pub fn create_worktree(
@@ -29,11 +41,10 @@ pub fn create_worktree(
     task_id: String,
     project_name: String,
     project_path: String,
-    branch_name: Option<String>,
+    base_branch: Option<String>,
 ) -> Result<String, String> {
     // 檢查是否為 git repo
     if !is_git_repo(&project_path) {
-        // 不是 git repo，直接返回原路徑
         return Ok(project_path);
     }
 
@@ -47,60 +58,37 @@ pub fn create_worktree(
     // 確保 worktrees 目錄存在
     let worktrees_dir = get_worktrees_dir(&app)?;
     std::fs::create_dir_all(&worktrees_dir)
-        .map_err(|e| format!("Failed to create worktrees dir: {}", e))?;
+        .map_err(|e| format!("Failed to create worktrees dir: {e}"))?;
 
-    // 決定 branch 名稱
-    let branch = branch_name.unwrap_or_else(|| format!("task/{}", &task_id[..8]));
+    let new_branch = format!("task/{}", &task_id[..8]);
+    let base = base_branch.unwrap_or_else(|| "main".to_string());
+    let wt_path = worktree_path.to_string_lossy();
 
-    // 嘗試建立新 branch 的 worktree
-    let output = Command::new("git")
+    // 先 fetch 確保有最新的 remote branch
+    let _ = Command::new("git")
         .current_dir(&project_path)
-        .args([
-            "worktree",
-            "add",
-            "-b",
-            &branch,
-            worktree_path.to_string_lossy().as_ref(),
-        ])
-        .output()
-        .map_err(|e| format!("Failed to run git: {}", e))?;
+        .args(["fetch", "origin", &base])
+        .output();
 
-    if !output.status.success() {
-        // 如果建立新 branch 失敗，嘗試不建立新 branch（可能 branch 已存在）
-        let output2 = Command::new("git")
-            .current_dir(&project_path)
-            .args([
-                "worktree",
-                "add",
-                worktree_path.to_string_lossy().as_ref(),
-                &branch,
-            ])
-            .output()
-            .map_err(|e| format!("Failed to run git: {}", e))?;
+    // 策略陣列：依序嘗試不同方法建立 worktree
+    let strategies: &[&[&str]] = &[
+        // 1. 新 branch 基於 origin/base
+        &["-b", &new_branch, &wt_path, &format!("origin/{base}")],
+        // 2. 新 branch 基於本地 base
+        &["-b", &new_branch, &wt_path, &base],
+        // 3. 使用已存在的 branch
+        &[&wt_path, &new_branch],
+        // 4. Detached HEAD（最後手段）
+        &["--detach", &wt_path],
+    ];
 
-        if !output2.status.success() {
-            // 最後嘗試：使用 HEAD
-            let output3 = Command::new("git")
-                .current_dir(&project_path)
-                .args([
-                    "worktree",
-                    "add",
-                    "--detach",
-                    worktree_path.to_string_lossy().as_ref(),
-                ])
-                .output()
-                .map_err(|e| format!("Failed to run git: {}", e))?;
-
-            if !output3.status.success() {
-                return Err(format!(
-                    "Failed to create worktree: {}",
-                    String::from_utf8_lossy(&output3.stderr)
-                ));
-            }
+    for strategy in strategies {
+        if try_worktree_add(&project_path, strategy)? {
+            return Ok(worktree_path.to_string_lossy().to_string());
         }
     }
 
-    Ok(worktree_path.to_string_lossy().to_string())
+    Err("Failed to create worktree: all strategies exhausted".to_string())
 }
 
 /// 移除 git worktree
@@ -130,7 +118,7 @@ pub fn remove_worktree(
     // 確保目錄被刪除
     if worktree_path.exists() {
         std::fs::remove_dir_all(&worktree_path)
-            .map_err(|e| format!("Failed to remove worktree dir: {}", e))?;
+            .map_err(|e| format!("Failed to remove worktree dir: {e}"))?;
     }
 
     Ok(())

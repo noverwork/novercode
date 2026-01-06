@@ -47,7 +47,7 @@ fn get_changed_files(path: String) -> Result<Vec<ChangedFile>, String> {
 fn get_file_diff(path: String, file_path: String) -> Result<FileDiff, String> {
     // Get original content (HEAD version)
     let original_output = std::process::Command::new("git")
-        .args(["show", &format!("HEAD:{}", file_path)])
+        .args(["show", &format!("HEAD:{file_path}")])
         .current_dir(&path)
         .output()
         .map_err(|e| e.to_string())?;

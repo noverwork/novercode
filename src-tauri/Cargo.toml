@@ -7,6 +7,40 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lints.rust]
+unsafe_code = "warn"
+unused = "warn"
+
+[lints.clippy]
+# 嚴格規則（priority -1 讓個別規則可以覆蓋）
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+# 放寬一些過於嚴格的規則
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+too_many_lines = "allow"
+significant_drop_tightening = "allow"
+redundant_pub_crate = "allow"
+similar_names = "allow"
+# Tauri command 必須 pass by value
+needless_pass_by_value = "allow"
+# Terminal cell 結構需要多個 bool
+struct_excessive_bools = "allow"
+# 合理的 cast（terminal 座標）
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_sign_loss = "allow"
+cast_precision_loss = "allow"
+# 允許相同 match arm（顏色映射）
+match_same_arms = "allow"
+# lazy_static 目前沒問題
+non_std_lazy_statics = "allow"
+# 不需要強制 const fn
+missing_const_for_fn = "allow"
+
 [lib]
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
