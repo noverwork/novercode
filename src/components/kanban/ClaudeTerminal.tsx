@@ -2,25 +2,47 @@ import { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { spawn, IPty } from "tauri-pty";
+import { invoke } from "@tauri-apps/api/core";
 import "@xterm/xterm/css/xterm.css";
 import { Button } from "@/components/ui/button";
-import { Terminal as TerminalIcon, RotateCcw, Plus } from "lucide-react";
+import { Terminal as TerminalIcon, Plus, FolderOpen, GitCommit, FileSearch, Bug, Sparkles } from "lucide-react";
 
 interface ClaudeTerminalProps {
   taskId: string;
   workingDir?: string;
 }
 
-// 全局 PTY 緩存 - 保持 PTY 進程在組件重新渲染時存活
-const ptyCache = new Map<string, IPty>();
+// PTY 緩存結構 - 保持 PTY 進程和 output buffer
+interface PtySession {
+  pty: IPty;
+  outputBuffer: string[];
+  listeners: Set<(data: string) => void>;
+}
+
+const ptyCache = new Map<string, PtySession>();
 
 // 關閉指定 taskId 的 PTY
 export function killPty(taskId: string): void {
-  const pty = ptyCache.get(taskId);
-  if (pty) {
-    pty.kill();
+  const session = ptyCache.get(taskId);
+  if (session) {
+    session.pty.kill();
     ptyCache.delete(taskId);
   }
+}
+
+// 向指定 taskId 的 PTY 寫入指令
+export function writeToPty(taskId: string, data: string): boolean {
+  const session = ptyCache.get(taskId);
+  if (session) {
+    session.pty.write(data);
+    return true;
+  }
+  return false;
+}
+
+// 向指定 taskId 的 PTY 發送指令（自動加換行）
+export function sendCommand(taskId: string, command: string): boolean {
+  return writeToPty(taskId, command + "\n");
 }
 
 export function ClaudeTerminal({ taskId, workingDir }: ClaudeTerminalProps) {
@@ -71,10 +93,10 @@ export function ClaudeTerminal({ taskId, workingDir }: ClaudeTerminalProps) {
     termRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    // 取得或創建 PTY
-    let pty = ptyCache.get(taskId);
-    if (!pty) {
-      pty = spawn("/bin/zsh", ["-l", "-c", "claude"], {
+    // 取得或創建 PTY session
+    let session = ptyCache.get(taskId);
+    if (!session) {
+      const pty = spawn("/bin/zsh", ["-l", "-c", "claude"], {
         cols: term.cols,
         rows: term.rows,
         cwd: workingDir || undefined,
@@ -83,56 +105,94 @@ export function ClaudeTerminal({ taskId, workingDir }: ClaudeTerminalProps) {
           COLORTERM: "truecolor",
         },
       });
-      ptyCache.set(taskId, pty);
+
+      session = {
+        pty,
+        outputBuffer: [],
+        listeners: new Set(),
+      };
+      ptyCache.set(taskId, session);
+
+      // PTY data handler - 廣播給所有 listeners 並存入 buffer
+      pty.onData((data: unknown) => {
+        let str: string;
+        if (typeof data === "string") {
+          str = data;
+        } else if (data instanceof Uint8Array) {
+          str = new TextDecoder().decode(data);
+        } else if (Array.isArray(data)) {
+          str = new TextDecoder().decode(new Uint8Array(data));
+        } else {
+          return;
+        }
+        // 存入 buffer（限制大小避免記憶體爆炸）
+        session!.outputBuffer.push(str);
+        if (session!.outputBuffer.length > 10000) {
+          session!.outputBuffer.shift();
+        }
+        // 廣播給所有 listeners
+        session!.listeners.forEach((listener) => listener(str));
+      });
 
       // PTY 退出時清理
       pty.onExit(({ exitCode }) => {
         console.log("[ClaudeTerminal] PTY exited:", exitCode);
+        const s = ptyCache.get(taskId);
+        if (s) {
+          s.listeners.forEach((listener) =>
+            listener(`\r\n\x1b[90m[Process exited with code ${exitCode}]\x1b[0m\r\n`)
+          );
+        }
         ptyCache.delete(taskId);
         setIsRunning(false);
-        term.write(`\r\n\x1b[90m[Process exited with code ${exitCode}]\x1b[0m\r\n`);
       });
+    } else {
+      // 恢復歷史 output
+      session.outputBuffer.forEach((chunk) => term.write(chunk));
     }
 
-    ptyRef.current = pty;
+    ptyRef.current = session.pty;
     setIsRunning(true);
 
-    // 最原生的連接方式 - 直接雙向綁定
-    const dataDisposable = pty.onData((data: unknown) => {
-      // 處理不同的數據類型
-      if (typeof data === "string") {
-        term.write(data);
-      } else if (data instanceof Uint8Array) {
-        term.write(data);
-      } else if (Array.isArray(data)) {
-        term.write(new Uint8Array(data));
-      }
-    });
+    // 註冊 listener
+    const listener = (data: string) => term.write(data);
+    session.listeners.add(listener);
 
+    // 輸入處理
     const inputDisposable = term.onData((data) => {
-      pty!.write(data);
+      session?.pty.write(data);
     });
 
-    // Resize 處理
+    // Resize 處理 - 使用 debounce 和尺寸檢查避免閃爍
     let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+    let lastCols = term.cols;
+    let lastRows = term.rows;
+
     const handleResize = () => {
       if (resizeTimeout) clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
-        fitAddon.fit();
-        pty?.resize(term.cols, term.rows);
-      }, 100);
+        requestAnimationFrame(() => {
+          fitAddon.fit();
+          // 只有尺寸真的變了才通知 PTY
+          if (term.cols !== lastCols || term.rows !== lastRows) {
+            lastCols = term.cols;
+            lastRows = term.rows;
+            session?.pty.resize(term.cols, term.rows);
+          }
+        });
+      }, 150);
     };
 
     window.addEventListener("resize", handleResize);
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(terminalRef.current);
 
-    // Cleanup
+    // Cleanup - 只移除 listener，不 kill PTY
     return () => {
       window.removeEventListener("resize", handleResize);
       resizeObserver.disconnect();
       if (resizeTimeout) clearTimeout(resizeTimeout);
-      dataDisposable.dispose();
+      session?.listeners.delete(listener);
       inputDisposable.dispose();
       term.dispose();
       termRef.current = null;
@@ -141,10 +201,10 @@ export function ClaudeTerminal({ taskId, workingDir }: ClaudeTerminalProps) {
   }, [taskId, workingDir]);
 
   const handleNewSession = () => {
-    // 殺掉舊 PTY
-    const oldPty = ptyCache.get(taskId);
-    if (oldPty) {
-      oldPty.kill();
+    // 殺掉舊 PTY session
+    const oldSession = ptyCache.get(taskId);
+    if (oldSession) {
+      oldSession.pty.kill();
       ptyCache.delete(taskId);
     }
 
@@ -163,32 +223,73 @@ export function ClaudeTerminal({ taskId, workingDir }: ClaudeTerminalProps) {
         },
       });
 
-      ptyCache.set(taskId, pty);
+      const session: PtySession = {
+        pty,
+        outputBuffer: [],
+        listeners: new Set(),
+      };
+
+      // 註冊當前 terminal 的 listener
+      const listener = (data: string) => term.write(data);
+      session.listeners.add(listener);
+
+      ptyCache.set(taskId, session);
       ptyRef.current = pty;
       setIsRunning(true);
 
       pty.onData((data: unknown) => {
+        let str: string;
         if (typeof data === "string") {
-          term.write(data);
+          str = data;
         } else if (data instanceof Uint8Array) {
-          term.write(data);
+          str = new TextDecoder().decode(data);
         } else if (Array.isArray(data)) {
-          term.write(new Uint8Array(data));
+          str = new TextDecoder().decode(new Uint8Array(data));
+        } else {
+          return;
         }
+        session.outputBuffer.push(str);
+        if (session.outputBuffer.length > 10000) {
+          session.outputBuffer.shift();
+        }
+        session.listeners.forEach((l) => l(str));
       });
+
       pty.onExit(({ exitCode }) => {
+        const s = ptyCache.get(taskId);
+        if (s) {
+          s.listeners.forEach((l) =>
+            l(`\r\n\x1b[90m[Process exited with code ${exitCode}]\x1b[0m\r\n`)
+          );
+        }
         ptyCache.delete(taskId);
         setIsRunning(false);
-        term.write(`\r\n\x1b[90m[Process exited with code ${exitCode}]\x1b[0m\r\n`);
       });
     }
   };
 
-  const handleReconnect = () => {
-    // 重新 fit 並同步尺寸
-    if (fitAddonRef.current && termRef.current && ptyRef.current) {
-      fitAddonRef.current.fit();
-      ptyRef.current.resize(termRef.current.cols, termRef.current.rows);
+  const handleOpenInFinder = async () => {
+    if (workingDir) {
+      try {
+        await invoke("open_folder", { path: workingDir });
+      } catch (e) {
+        console.error("Failed to open in Finder:", e);
+      }
+    }
+  };
+
+  // 快捷指令
+  const quickCommands = [
+    { icon: GitCommit, label: "commit", command: "/commit" },
+    { icon: FileSearch, label: "review", command: "review the changes I made" },
+    { icon: Bug, label: "fix", command: "fix the errors" },
+    { icon: Sparkles, label: "improve", command: "improve this code" },
+  ];
+
+  const handleQuickCommand = (command: string) => {
+    const session = ptyCache.get(taskId);
+    if (session) {
+      session.pty.write(command + "\n");
     }
   };
 
@@ -204,6 +305,17 @@ export function ClaudeTerminal({ taskId, workingDir }: ClaudeTerminalProps) {
           )}
         </div>
         <div className="flex items-center gap-1">
+          {workingDir && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleOpenInFinder}
+              className="text-green-800 hover:text-green-500 hover:bg-green-900/20 h-8 w-8"
+              title="Open in Finder"
+            >
+              <FolderOpen className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -213,16 +325,23 @@ export function ClaudeTerminal({ taskId, workingDir }: ClaudeTerminalProps) {
           >
             <Plus className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleReconnect}
-            className="text-green-800 hover:text-green-500 hover:bg-green-900/20 h-8 w-8"
-            title="Reconnect"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </Button>
         </div>
+      </div>
+
+      {/* Quick Commands */}
+      <div className="border-b border-green-900/50 px-4 py-2 flex items-center gap-2">
+        {quickCommands.map((cmd) => (
+          <Button
+            key={cmd.label}
+            variant="ghost"
+            size="sm"
+            onClick={() => handleQuickCommand(cmd.command)}
+            className="text-green-700 hover:text-green-400 hover:bg-green-900/30 h-7 px-2 font-mono text-xs"
+          >
+            <cmd.icon className="h-3 w-3 mr-1" />
+            {cmd.label}
+          </Button>
+        ))}
       </div>
 
       {/* Terminal */}

@@ -9,31 +9,34 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 
 interface AddTaskDialogProps {
-  onAdd: (title: string, description: string) => void | Promise<void> | Promise<string>;
+  onAdd: (title: string) => void | Promise<void> | Promise<string>;
 }
 
 export function AddTaskDialog({ onAdd }: AddTaskDialogProps) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (title.trim()) {
-      await onAdd(title.trim(), description.trim());
-      setTitle("");
-      setDescription("");
-      setOpen(false);
+    if (title.trim() && !isLoading) {
+      setIsLoading(true);
+      try {
+        await onAdd(title.trim());
+        setTitle("");
+        setOpen(false);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => !isLoading && setOpen(v)}>
       <DialogTrigger asChild>
         <Button
           size="sm"
@@ -50,7 +53,7 @@ export function AddTaskDialog({ onAdd }: AddTaskDialogProps) {
               // new_task
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="py-4">
             <div className="space-y-2">
               <Label htmlFor="title" className="text-green-700 text-xs">
                 $ title =
@@ -61,20 +64,8 @@ export function AddTaskDialog({ onAdd }: AddTaskDialogProps) {
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="enter task title..."
                 autoFocus
-                className="bg-black border border-green-900 text-green-500 placeholder:text-green-900 focus:border-green-500 font-mono"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description" className="text-green-700 text-xs">
-                $ description =
-              </Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="enter task description..."
-                rows={3}
-                className="bg-black border border-green-900 text-green-500 placeholder:text-green-900 focus:border-green-500 font-mono resize-none"
+                disabled={isLoading}
+                className="bg-black border border-green-900 text-green-500 placeholder:text-green-900 focus:border-green-500 font-mono disabled:opacity-50"
               />
             </div>
           </div>
@@ -83,16 +74,24 @@ export function AddTaskDialog({ onAdd }: AddTaskDialogProps) {
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              className="font-mono text-sm border border-green-900 text-green-700 hover:bg-green-900/20 hover:text-green-600 bg-transparent"
+              disabled={isLoading}
+              className="font-mono text-sm border border-green-900 text-green-700 hover:bg-green-900/20 hover:text-green-600 bg-transparent disabled:opacity-50"
             >
               [cancel]
             </Button>
             <Button
               type="submit"
-              disabled={!title.trim()}
+              disabled={!title.trim() || isLoading}
               className="font-mono text-sm border border-green-700 text-green-500 hover:bg-green-900/30 hover:text-green-400 bg-green-950/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              [create]
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  [creating...]
+                </>
+              ) : (
+                "[create]"
+              )}
             </Button>
           </DialogFooter>
         </form>

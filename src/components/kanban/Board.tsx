@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { TaskCard } from "./TaskCard";
 import { AddTaskDialog } from "./AddTaskDialog";
 import { AddProjectDialog } from "./AddProjectDialog";
 import { ClaudeTerminal, killPty } from "./ClaudeTerminal";
+import { DiffView } from "./DiffView";
 import { useKanban } from "@/hooks/useKanban";
-import { Folder, Trash2 } from "lucide-react";
+import { Folder, Trash2, Loader2, ChevronLeft, ChevronRight, Terminal, GitCompare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Board() {
@@ -21,15 +23,93 @@ export function Board() {
     deleteTask,
   } = useKanban();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [workingDir, setWorkingDir] = useState<string | null>(null);
+  const [isWorktreeReady, setIsWorktreeReady] = useState(false);
+  const [projectsCollapsed, setProjectsCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = useState<"claude" | "diff">("claude");
 
-  // 刪除 project 時也要 kill 相關的 PTY
+  // 選擇 task 時建立 worktree
+  useEffect(() => {
+    if (!selectedTaskId) {
+      setWorkingDir(null);
+      setIsWorktreeReady(false);
+      return;
+    }
+
+    // 如果 project 沒有 path，直接標記為 ready
+    if (!currentProject?.path) {
+      setWorkingDir(null);
+      setIsWorktreeReady(true);
+      return;
+    }
+
+    setIsWorktreeReady(false);
+    const setupWorktree = async () => {
+      try {
+        const path = await invoke<string>("create_worktree", {
+          taskId: selectedTaskId,
+          projectName: currentProject.name,
+          projectPath: currentProject.path,
+        });
+        setWorkingDir(path);
+      } catch (e) {
+        console.error("Failed to create worktree:", e);
+        setWorkingDir(currentProject.path || null);
+      }
+      setIsWorktreeReady(true);
+    };
+
+    setupWorktree();
+  }, [selectedTaskId, currentProject?.path, currentProject?.name]);
+
+  // 刪除 task 時也移除 worktree
+  const handleDeleteTask = async (id: string) => {
+    killPty(id);
+    if (selectedTaskId === id) {
+      setSelectedTaskId(null);
+      setWorkingDir(null);
+    }
+    // 移除 worktree
+    if (currentProject) {
+      try {
+        await invoke("remove_worktree", {
+          taskId: id,
+          projectName: currentProject.name,
+          projectPath: currentProject.path,
+        });
+      } catch (e) {
+        console.error("Failed to remove worktree:", e);
+      }
+    }
+    await deleteTask(id);
+  };
+
+  // 刪除 project 時也要 kill 相關的 PTY 和移除 worktrees
   const handleDeleteProject = async (projectId: string) => {
     const projectTasks = getTasksByProject(projectId);
-    projectTasks.forEach((t) => killPty(t.id));
+    const project = projects.find((p) => p.id === projectId);
+
+    // Kill PTYs 和移除 worktrees
+    if (project) {
+      for (const t of projectTasks) {
+        killPty(t.id);
+        try {
+          await invoke("remove_worktree", {
+            taskId: t.id,
+            projectName: project.name,
+            projectPath: project.path,
+          });
+        } catch (e) {
+          console.error("Failed to remove worktree:", e);
+        }
+      }
+    }
+
     if (selectedTaskId) {
       const task = projectTasks.find((t) => t.id === selectedTaskId);
       if (task) {
         setSelectedTaskId(null);
+        setWorkingDir(null);
       }
     }
     await deleteProject(projectId);
@@ -48,8 +128,8 @@ export function Board() {
         <div className="flex items-center gap-2">
           {currentProjectId && (
             <AddTaskDialog
-              onAdd={async (title, description) => {
-                const newId = await addTask(title, description);
+              onAdd={async (title) => {
+                const newId = await addTask(title, "");
                 setSelectedTaskId(newId);
               }}
             />
@@ -60,13 +140,44 @@ export function Board() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Project List - Far Left */}
-        <div className="w-48 border-r border-green-900 flex flex-col">
-          <div className="h-9 px-3 border-b border-green-900 flex items-center justify-between">
-            <span className="text-xs text-green-700 font-mono">projects</span>
-            <AddProjectDialog onAdd={addProject} />
+        <div className={`${projectsCollapsed ? "w-10" : "w-48"} border-r border-green-900 flex flex-col transition-[width] duration-150 ease-out`}>
+          <div className="h-9 px-2 border-b border-green-900 flex items-center justify-between gap-1">
+            {!projectsCollapsed && (
+              <>
+                <span className="text-xs text-green-700 font-mono">projects</span>
+                <AddProjectDialog onAdd={addProject} />
+              </>
+            )}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-5 w-5 text-green-700 hover:text-green-400 hover:bg-green-900/30"
+              onClick={() => setProjectsCollapsed(!projectsCollapsed)}
+            >
+              {projectsCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+            </Button>
           </div>
           <div className="flex-1 overflow-auto p-2 space-y-1">
-            {projects.length === 0 ? (
+            {projectsCollapsed ? (
+              projects.map((project) => (
+                <div
+                  key={project.id}
+                  className={`flex items-center justify-center p-1.5 rounded cursor-pointer transition-colors ${
+                    project.id === currentProjectId
+                      ? "bg-green-900/30 text-green-400"
+                      : "text-green-700 hover:bg-green-900/20 hover:text-green-500"
+                  }`}
+                  onClick={() => {
+                    setCurrentProjectId(project.id);
+                    setSelectedTaskId(null);
+                    setWorkingDir(null);
+                  }}
+                  title={project.name}
+                >
+                  <Folder className="h-4 w-4" />
+                </div>
+              ))
+            ) : projects.length === 0 ? (
               <div className="text-center py-8 text-green-900 font-mono text-xs">
                 <p>no projects</p>
               </div>
@@ -82,6 +193,7 @@ export function Board() {
                   onClick={() => {
                     setCurrentProjectId(project.id);
                     setSelectedTaskId(null);
+                    setWorkingDir(null);
                   }}
                 >
                   <Folder className="h-3 w-3 flex-shrink-0" />
@@ -127,13 +239,7 @@ export function Board() {
                     key={task.id}
                     task={task}
                     selected={task.id === selectedTaskId}
-                    onDelete={async (id) => {
-                      killPty(id);
-                      if (selectedTaskId === id) {
-                        setSelectedTaskId(null);
-                      }
-                      await deleteTask(id);
-                    }}
+                    onDelete={handleDeleteTask}
                     onClick={setSelectedTaskId}
                   />
                 ))
@@ -142,13 +248,53 @@ export function Board() {
           </div>
         </div>
 
-        {/* Terminal - Right */}
+        {/* Terminal / Diff - Right */}
         <div className="flex-1 flex flex-col">
-          {selectedTaskId ? (
-            <ClaudeTerminal
-              taskId={selectedTaskId}
-              workingDir={currentProject?.path}
-            />
+          {selectedTaskId && isWorktreeReady ? (
+            <>
+              {/* Tabs */}
+              <div className="h-9 border-b border-green-900 flex items-center px-2 gap-1">
+                <button
+                  onClick={() => setActiveTab("claude")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-xs transition-colors ${
+                    activeTab === "claude"
+                      ? "bg-green-900/40 text-green-400"
+                      : "text-green-700 hover:bg-green-900/20 hover:text-green-500"
+                  }`}
+                >
+                  <Terminal className="h-3 w-3" />
+                  claude
+                </button>
+                <button
+                  onClick={() => setActiveTab("diff")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-xs transition-colors ${
+                    activeTab === "diff"
+                      ? "bg-green-900/40 text-green-400"
+                      : "text-green-700 hover:bg-green-900/20 hover:text-green-500"
+                  }`}
+                >
+                  <GitCompare className="h-3 w-3" />
+                  diff
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-hidden">
+                {activeTab === "claude" ? (
+                  <ClaudeTerminal
+                    taskId={selectedTaskId}
+                    workingDir={workingDir || undefined}
+                  />
+                ) : (
+                  <DiffView workingDir={workingDir || undefined} />
+                )}
+              </div>
+            </>
+          ) : selectedTaskId && !isWorktreeReady ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-green-800 font-mono gap-3">
+              <Loader2 className="h-6 w-6 animate-spin text-green-600" />
+              <p>creating worktree...</p>
+            </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-green-800 font-mono">
               <p>{currentProjectId ? "select a task to start" : "select a project"}</p>
