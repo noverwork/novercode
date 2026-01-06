@@ -5,7 +5,6 @@ use alacritty_terminal::sync::FairMutex;
 use alacritty_terminal::term::test::TermSize;
 use alacritty_terminal::term::{Config as TermConfig, Term};
 use alacritty_terminal::tty::{self, Options as PtyOptions};
-use alacritty_terminal::vte::ansi::CursorShape;
 use parking_lot::Mutex;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -22,6 +21,8 @@ pub struct TermCell {
     pub bold: bool,
     pub italic: bool,
     pub underline: bool,
+    pub wide: bool,
+    pub spacer: bool, // WIDE_CHAR_SPACER - skip rendering
 }
 
 /// Terminal grid state for frontend rendering
@@ -159,6 +160,8 @@ fn extract_grid(term: &Term<TauriEventListener>, id: &str) -> TerminalGrid {
                     bold: false,
                     italic: false,
                     underline: false,
+                    wide: false,
+                    spacer: false,
                 })
                 .collect()
         })
@@ -179,14 +182,30 @@ fn extract_grid(term: &Term<TauriEventListener>, id: &str) -> TerminalGrid {
         if col < cols {
             let c = cell.cell.c.to_string();
             let flags = cell.cell.flags;
+            let is_inverse = flags.contains(alacritty_terminal::term::cell::Flags::INVERSE);
+
+            // Handle INVERSE flag - swap fg/bg colors (used by TUI apps for cursor)
+            let (fg, bg) = if is_inverse {
+                (
+                    color_to_rgb(cell.cell.bg, default_bg),
+                    color_to_rgb(cell.cell.fg, default_fg),
+                )
+            } else {
+                (
+                    color_to_rgb(cell.cell.fg, default_fg),
+                    color_to_rgb(cell.cell.bg, default_bg),
+                )
+            };
 
             cells[row][col] = TermCell {
                 c,
-                fg: color_to_rgb(cell.cell.fg, default_fg),
-                bg: color_to_rgb(cell.cell.bg, default_bg),
+                fg,
+                bg,
                 bold: flags.contains(alacritty_terminal::term::cell::Flags::BOLD),
                 italic: flags.contains(alacritty_terminal::term::cell::Flags::ITALIC),
                 underline: flags.contains(alacritty_terminal::term::cell::Flags::UNDERLINE),
+                wide: flags.contains(alacritty_terminal::term::cell::Flags::WIDE_CHAR),
+                spacer: flags.contains(alacritty_terminal::term::cell::Flags::WIDE_CHAR_SPACER),
             };
         }
     }
@@ -201,8 +220,8 @@ fn extract_grid(term: &Term<TauriEventListener>, id: &str) -> TerminalGrid {
         rows.saturating_sub(1) // Default to bottom if out of range
     };
 
-    // Check if cursor should be visible (not Hidden shape)
-    let cursor_visible = cursor.shape != CursorShape::Hidden;
+    // Always hide shell cursor - Claude Code renders its own cursor
+    let cursor_visible = false;
 
     TerminalGrid {
         id: id.to_string(),
@@ -225,11 +244,13 @@ pub async fn terminal_create(
     rows: u16,
     cwd: Option<String>,
 ) -> Result<(), String> {
-    // Check if session already exists
+    // Check if session already exists - if so, just trigger a re-render
     {
         let sessions = SESSIONS.lock();
-        if sessions.contains_key(&id) {
-            return Err("Session already exists".to_string());
+        if let Some(session) = sessions.get(&id) {
+            // Mark dirty to trigger re-render for reconnecting client
+            session.dirty.store(true, std::sync::atomic::Ordering::Relaxed);
+            return Ok(());
         }
     }
 

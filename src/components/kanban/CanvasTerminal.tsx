@@ -16,6 +16,8 @@ interface TermCell {
   bold: boolean;
   italic: boolean;
   underline: boolean;
+  wide: boolean;
+  spacer: boolean;
 }
 
 interface TerminalGrid {
@@ -35,9 +37,9 @@ interface CanvasTerminalProps {
 
 // 字體設定 - 使用整數避免 resize 抖動
 const FONT_SIZE = 14;
-const FONT_FAMILY = '"JetBrains Mono", "Fira Code", monospace';
+const FONT_FAMILY = '"SF Mono", Menlo, Monaco, "PingFang TC", monospace';
 const CELL_WIDTH = 9; // 整數，避免浮點誤差
-const CELL_HEIGHT = 18;
+const CELL_HEIGHT = 17;
 
 export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -98,14 +100,19 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
     for (let row = 0; row < rows && row < cells.length; row++) {
       for (let col = 0; col < cols && col < cells[row].length; col++) {
         const cell = cells[row][col];
+
+        // Skip spacer cells (second half of wide chars)
+        if (cell.spacer) continue;
+
         const x = col * CELL_WIDTH;
         const y = row * CELL_HEIGHT;
+        const cellWidth = cell.wide ? CELL_WIDTH * 2 : CELL_WIDTH;
 
         // 背景
         const bgColor = `rgb(${cell.bg[0]}, ${cell.bg[1]}, ${cell.bg[2]})`;
         if (bgColor !== "rgb(10, 10, 10)") {
           ctx.fillStyle = bgColor;
-          ctx.fillRect(x, y, CELL_WIDTH, CELL_HEIGHT);
+          ctx.fillRect(x, y, cellWidth, CELL_HEIGHT);
         }
 
         // 文字
@@ -130,7 +137,7 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(x, y + CELL_HEIGHT - 2);
-            ctx.lineTo(x + CELL_WIDTH, y + CELL_HEIGHT - 2);
+            ctx.lineTo(x + cellWidth, y + CELL_HEIGHT - 2);
             ctx.stroke();
           }
         }
@@ -204,7 +211,8 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
     return () => {
       unlistenRender?.();
       unlistenExit?.();
-      invoke("terminal_kill", { id: taskId }).catch(console.error);
+      // Don't kill terminal on unmount - keep session alive for reconnection
+      // Terminal is only killed when task is deleted (handled in Board.tsx)
     };
   }, [taskId, workingDir, calculateSize, render]);
 
