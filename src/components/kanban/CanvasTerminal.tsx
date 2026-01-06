@@ -48,6 +48,7 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
   const gridRef = useRef<TerminalGrid | null>(null);
+  const hasRenderedRef = useRef(false);
 
   // 計算終端尺寸
   const calculateSize = useCallback(() => {
@@ -78,7 +79,8 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
     const targetWidth = width * dpr;
     const targetHeight = height * dpr;
 
-    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+    const needsResize = canvas.width !== targetWidth || canvas.height !== targetHeight;
+    if (needsResize) {
       canvas.width = targetWidth;
       canvas.height = targetHeight;
       canvas.style.width = `${width}px`;
@@ -173,11 +175,15 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
 
     const init = async () => {
       try {
-        // 監聽渲染事件
+        // 監聯渲染事件
         unlistenRender = await listen<TerminalGrid>(
           `terminal-render-${taskId}`,
           (event) => {
             gridRef.current = event.payload;
+            if (!hasRenderedRef.current) {
+              hasRenderedRef.current = true;
+              setIsRunning(true);
+            }
             requestAnimationFrame(render);
           }
         );
@@ -194,8 +200,7 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
           rows,
           cwd: workingDir,
         });
-
-        setIsRunning(true);
+        // isRunning will be set when first render event is received
       } catch (e) {
         console.error("Failed to create terminal:", e);
       }
@@ -211,6 +216,8 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
     return () => {
       unlistenRender?.();
       unlistenExit?.();
+      hasRenderedRef.current = false;
+      setIsRunning(false);
       // Don't kill terminal on unmount - keep session alive for reconnection
       // Terminal is only killed when task is deleted (handled in Board.tsx)
     };
@@ -425,6 +432,15 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
           className="absolute inset-0"
           style={{ imageRendering: "pixelated" }}
         />
+        {/* Loading overlay */}
+        {!isRunning && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]">
+            <div className="text-green-600 font-mono text-sm flex items-center gap-2">
+              <span className="animate-pulse">●</span>
+              <span>initializing claude...</span>
+            </div>
+          </div>
+        )}
         {/* Hidden textarea for keyboard input (including IME) */}
         <textarea
           ref={inputRef}
