@@ -209,11 +209,12 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
     init();
 
     // Auto focus the hidden input
-    setTimeout(() => {
+    const focusTimeout = setTimeout(() => {
       inputRef.current?.focus();
     }, 100);
 
     return () => {
+      clearTimeout(focusTimeout);
       unlistenRender?.();
       unlistenExit?.();
       hasRenderedRef.current = false;

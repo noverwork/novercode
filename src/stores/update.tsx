@@ -1,43 +1,13 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  type ReactNode,
-} from "react";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 import {
   checkForUpdate,
   downloadAndInstallUpdate,
   restartApp,
-  type UpdateInfo,
-  type DownloadProgress,
 } from "@/services/updater";
-
-export type UpdateStatus =
-  | "idle"
-  | "checking"
-  | "available"
-  | "downloading"
-  | "ready"
-  | "error";
-
-interface UpdateState {
-  status: UpdateStatus;
-  updateInfo: UpdateInfo | null;
-  downloadProgress: DownloadProgress | null;
-  error: string | null;
-  showNotification: boolean;
-}
-
-interface UpdateContextValue extends UpdateState {
-  checkUpdate: (showToast?: boolean) => Promise<void>;
-  downloadUpdate: () => Promise<void>;
-  restart: () => Promise<void>;
-  dismissNotification: () => void;
-}
-
-const UpdateContext = createContext<UpdateContextValue | null>(null);
+import {
+  UpdateContext,
+  type UpdateState,
+} from "./UpdateContext";
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // 每小時檢查一次
 const INITIAL_CHECK_DELAY_MS = 5000; // 啟動 5 秒後首次檢查
@@ -68,7 +38,7 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
           showNotification: true,
         }));
         if (showToast) {
-          console.log(`New version available: v${info.version}`);
+          // Toast notification would go here
         }
       } else {
         setState((prev) => ({
@@ -76,7 +46,7 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
           status: "idle",
         }));
         if (showToast) {
-          console.log("Already up to date");
+          // Already up to date notification would go here
         }
       }
     } catch (err) {
@@ -167,12 +137,4 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
       {children}
     </UpdateContext.Provider>
   );
-}
-
-export function useUpdate(): UpdateContextValue {
-  const context = useContext(UpdateContext);
-  if (!context) {
-    throw new Error("useUpdate must be used within an UpdateProvider");
-  }
-  return context;
 }

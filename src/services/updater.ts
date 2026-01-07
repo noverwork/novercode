@@ -48,7 +48,7 @@ export async function downloadAndInstallUpdate(
     switch (event.event) {
       case "Started":
         contentLength = event.data.contentLength ?? null;
-        console.log(`Started downloading ${contentLength} bytes`);
+        // Download started
         break;
       case "Progress":
         downloaded += event.data.chunkLength;
@@ -57,7 +57,7 @@ export async function downloadAndInstallUpdate(
         }
         break;
       case "Finished":
-        console.log("Download finished");
+        // Download finished
         break;
     }
   });

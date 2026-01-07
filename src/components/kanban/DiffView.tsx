@@ -170,7 +170,7 @@ export function DiffView({ workingDir }: DiffViewProps) {
   const [fileDiff, setFileDiff] = useState<FileDiff | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingDiff, setIsLoadingDiff] = useState(false);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set());
 
   const toggleFolder = useCallback((path: string) => {
     setExpandedFolders((prev) => {

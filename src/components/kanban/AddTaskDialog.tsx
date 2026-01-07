@@ -49,9 +49,7 @@ export function AddTaskDialog({ onAdd }: AddTaskDialogProps) {
       <DialogContent className="bg-black border border-green-900 text-green-500 font-mono">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-green-500">
-              // new_task
-            </DialogTitle>
+            <DialogTitle className="text-green-500">{"// new_task"}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <div className="space-y-2">

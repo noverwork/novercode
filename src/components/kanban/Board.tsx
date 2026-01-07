@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { TaskCard } from "./TaskCard";
 import { AddTaskDialog } from "./AddTaskDialog";
@@ -9,6 +9,11 @@ import { SettingsSheet } from "@/components/SettingsSheet";
 import { useKanban } from "@/hooks/useKanban";
 import { Folder, Trash2, Loader2, ChevronLeft, ChevronRight, Terminal, GitCompare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+type WorktreeState =
+  | { status: "idle" }
+  | { status: "loading"; taskId: string }
+  | { status: "ready"; taskId: string; dir: string | null };
 
 // Kill terminal helper
 async function killTerminal(taskId: string) {
@@ -33,27 +38,39 @@ export function Board() {
     deleteTask,
   } = useKanban();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [workingDir, setWorkingDir] = useState<string | null>(null);
-  const [isWorktreeReady, setIsWorktreeReady] = useState(false);
+  const [worktree, setWorktree] = useState<WorktreeState>({ status: "idle" });
   const [projectsCollapsed, setProjectsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<"claude" | "diff">("claude");
 
+  // Derived state from worktree
+  const workingDir = useMemo(() => {
+    if (worktree.status === "ready" && worktree.taskId === selectedTaskId) {
+      return worktree.dir;
+    }
+    return null;
+  }, [worktree, selectedTaskId]);
+
+  const isWorktreeReady = useMemo(() => {
+    if (!selectedTaskId) return false;
+    return worktree.status === "ready" && worktree.taskId === selectedTaskId;
+  }, [worktree, selectedTaskId]);
+
   // 選擇 task 時建立 worktree
   useEffect(() => {
-    if (!selectedTaskId) {
-      setWorkingDir(null);
-      setIsWorktreeReady(false);
-      return;
-    }
+    if (!selectedTaskId) return;
 
     // 如果 project 沒有 path，直接標記為 ready
     if (!currentProject?.path) {
-      setWorkingDir(null);
-      setIsWorktreeReady(true);
+      // eslint-disable-next-line react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect -- intentional sync for early return
+      setWorktree({ status: "ready", taskId: selectedTaskId, dir: null });
       return;
     }
 
-    setIsWorktreeReady(false);
+    // Set loading state - intentional sync setState for loading indicator
+    // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
+    setWorktree({ status: "loading", taskId: selectedTaskId });
+
+    let cancelled = false;
     const setupWorktree = async () => {
       try {
         const path = await invoke<string>("create_worktree", {
@@ -62,15 +79,19 @@ export function Board() {
           projectPath: currentProject.path,
           baseBranch: currentProject.baseBranch,
         });
-        setWorkingDir(path);
+        if (!cancelled) {
+          setWorktree({ status: "ready", taskId: selectedTaskId, dir: path });
+        }
       } catch (e) {
         console.error("Failed to create worktree:", e);
-        setWorkingDir(currentProject.path || null);
+        if (!cancelled) {
+          setWorktree({ status: "ready", taskId: selectedTaskId, dir: currentProject.path || null });
+        }
       }
-      setIsWorktreeReady(true);
     };
 
     setupWorktree();
+    return () => { cancelled = true; };
   }, [selectedTaskId, currentProject?.path, currentProject?.name, currentProject?.baseBranch]);
 
   // 刪除 task 時也移除 worktree
@@ -78,7 +99,6 @@ export function Board() {
     await killTerminal(id);
     if (selectedTaskId === id) {
       setSelectedTaskId(null);
-      setWorkingDir(null);
     }
     // 移除 worktree
     if (currentProject) {
@@ -120,7 +140,6 @@ export function Board() {
       const task = projectTasks.find((t) => t.id === selectedTaskId);
       if (task) {
         setSelectedTaskId(null);
-        setWorkingDir(null);
       }
     }
     await deleteProject(projectId);
@@ -182,7 +201,6 @@ export function Board() {
                   onClick={() => {
                     setCurrentProjectId(project.id);
                     setSelectedTaskId(null);
-                    setWorkingDir(null);
                   }}
                   title={project.name}
                 >
@@ -205,10 +223,9 @@ export function Board() {
                   onClick={() => {
                     setCurrentProjectId(project.id);
                     setSelectedTaskId(null);
-                    setWorkingDir(null);
                   }}
                 >
-                  <Folder className="h-3 w-3 flex-shrink-0" />
+                  <Folder className="h-3 w-3 shrink-0" />
                   <span className="truncate flex-1">{project.name}</span>
                   <Button
                     size="icon"

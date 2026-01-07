@@ -8,7 +8,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useUpdate } from "@/stores/update";
+import { useUpdate } from "@/hooks/useUpdate";
 
 export function SettingsSheet() {
   const [open, setOpen] = useState(false);

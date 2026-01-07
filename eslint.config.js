@@ -1,31 +1,27 @@
-import js from "@eslint/js";
+// @ts-check
+import eslintJs from "@eslint/js";
+import eslintReact from "@eslint-react/eslint-plugin";
+import eslintPluginReactHooks from "eslint-plugin-react-hooks";
+import eslintPluginReactRefresh from "eslint-plugin-react-refresh";
+import { defineConfig } from "eslint/config";
 import globals from "globals";
 import tseslint from "typescript-eslint";
-import reactHooks from "eslint-plugin-react-hooks";
-import reactRefresh from "eslint-plugin-react-refresh";
 
-export default tseslint.config(
+const GLOB_TS = ["**/*.ts", "**/*.tsx"];
+const GLOB_SRC = ["src/**/*.ts", "src/**/*.tsx"];
+
+export default defineConfig([
   { ignores: ["dist", "src-tauri", "node_modules"] },
+
+  // Base TypeScript configuration
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ["**/*.{ts,tsx}"],
+    files: GLOB_TS,
+    extends: [eslintJs.configs.recommended, tseslint.configs.recommended],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
     },
-    plugins: {
-      "react-hooks": reactHooks,
-      "react-refresh": reactRefresh,
-    },
     rules: {
-      ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
-      // 允許在 effect 中做依賴變化時的 state reset
-      "react-hooks/set-state-in-effect": "off",
-      // TypeScript 嚴格規則
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
@@ -33,10 +29,27 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/explicit-function-return-type": "off",
       "@typescript-eslint/explicit-module-boundary-types": "off",
-      // 一般規則
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "prefer-const": "error",
       eqeqeq: ["error", "always"],
     },
-  }
-);
+  },
+
+  // React specific configurations (src only)
+  {
+    files: GLOB_SRC,
+    extends: [
+      eslintReact.configs["recommended-typescript"],
+      eslintPluginReactHooks.configs.flat?.["recommended-latest"] ?? [],
+      eslintPluginReactRefresh.configs.recommended,
+    ],
+    rules: {
+      // shadcn/ui uses forwardRef - ignore for ui components
+      "@eslint-react/no-forward-ref": "off",
+      // Allow useContext (use() requires Suspense boundary)
+      "@eslint-react/no-use-context": "off",
+      // Allow Context.Provider pattern
+      "@eslint-react/no-context-provider": "off",
+    },
+  },
+]);

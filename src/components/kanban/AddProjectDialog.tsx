@@ -72,9 +72,7 @@ export function AddProjectDialog({ onAdd }: AddProjectDialogProps) {
       <DialogContent className="bg-black border border-green-900 text-green-500 font-mono">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-green-500">
-              // new_project
-            </DialogTitle>
+            <DialogTitle className="text-green-500">{"// new_project"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
