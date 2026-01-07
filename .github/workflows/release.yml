@@ -66,17 +66,20 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
 
-      - name: Verify Certificate or use ad-hoc signing
+      - name: Setup signing identity
+        id: setup_signing
         if: matrix.platform == 'macos-latest'
         run: |
           if [ "${{ steps.import_cert.outcome }}" == "success" ]; then
             CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID")
             CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-            echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
+            echo "cert_id=$CERT_ID" >> $GITHUB_OUTPUT
+            echo "use_cert=false" >> $GITHUB_OUTPUT
             echo "Certificate imported: $CERT_ID"
           else
-            echo "Certificate import failed, using ad-hoc signing"
-            echo "CERT_ID=-" >> $GITHUB_ENV
+            echo "cert_id=-" >> $GITHUB_OUTPUT
+            echo "use_cert=true" >> $GITHUB_OUTPUT
+            echo "Certificate import failed, using ad-hoc signing (-)"
           fi
 
       - name: Build and release
@@ -86,9 +89,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # macOS signing & notarization
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
+          # Only pass APPLE_CERTIFICATE if manual import failed (let tauri try)
+          APPLE_CERTIFICATE: ${{ steps.setup_signing.outputs.use_cert == 'true' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ steps.setup_signing.outputs.use_cert == 'true' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ steps.setup_signing.outputs.cert_id }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
