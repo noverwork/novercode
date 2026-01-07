@@ -70,17 +70,11 @@ jobs:
         id: setup_signing
         if: matrix.platform == 'macos-latest'
         run: |
-          if [ "${{ steps.import_cert.outcome }}" == "success" ]; then
-            CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID")
-            CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-            echo "cert_id=$CERT_ID" >> $GITHUB_OUTPUT
-            echo "use_cert=false" >> $GITHUB_OUTPUT
-            echo "Certificate imported: $CERT_ID"
-          else
-            echo "cert_id=-" >> $GITHUB_OUTPUT
-            echo "use_cert=true" >> $GITHUB_OUTPUT
-            echo "Certificate import failed, using ad-hoc signing (-)"
-          fi
+          # TEMPORARY: Use ad-hoc signing for testing
+          # TODO: Re-enable proper certificate signing after APPLE_CERTIFICATE secret is fixed
+          echo "cert_id=-" >> $GITHUB_OUTPUT
+          echo "use_cert=false" >> $GITHUB_OUTPUT
+          echo "Using ad-hoc signing (-) for testing"
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
@@ -88,10 +82,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # macOS signing & notarization
-          # Only pass APPLE_CERTIFICATE if manual import failed (let tauri try)
-          APPLE_CERTIFICATE: ${{ steps.setup_signing.outputs.use_cert == 'true' && secrets.APPLE_CERTIFICATE || '' }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ steps.setup_signing.outputs.use_cert == 'true' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          # macOS signing & notarization - disabled for now, using ad-hoc
           APPLE_SIGNING_IDENTITY: ${{ steps.setup_signing.outputs.cert_id }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
