@@ -283,7 +283,7 @@ pub async fn terminal_create(
         working_directory: cwd.map(PathBuf::from),
         env: std::collections::HashMap::new(),
         drain_on_exit: false,
-        escape_args: Vec::new(),
+        escape_args: false,
     };
     #[cfg(not(target_os = "windows"))]
     let pty_config = PtyOptions {
