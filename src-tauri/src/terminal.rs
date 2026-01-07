@@ -274,6 +274,18 @@ pub async fn terminal_create(
 
     // PTY options
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    #[cfg(target_os = "windows")]
+    let pty_config = PtyOptions {
+        shell: Some(tty::Shell::new(
+            shell,
+            vec!["-l".into(), "-c".into(), "claude".into()],
+        )),
+        working_directory: cwd.map(PathBuf::from),
+        env: std::collections::HashMap::new(),
+        drain_on_exit: false,
+        escape_args: Vec::new(),
+    };
+    #[cfg(not(target_os = "windows"))]
     let pty_config = PtyOptions {
         shell: Some(tty::Shell::new(
             shell,
