@@ -352,6 +352,22 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
     [taskId]
   );
 
+  // 滾輪滾動處理
+  const handleWheel = useCallback(
+    async (e: React.WheelEvent) => {
+      e.preventDefault();
+      // deltaY > 0 表示向下滾動，需要往回看歷史（負數）
+      // deltaY < 0 表示向上滾動，需要往前看（正數）
+      const lines = Math.sign(e.deltaY) * -3; // 每次滾動 3 行
+      try {
+        await invoke("terminal_scroll", { id: taskId, lines });
+      } catch (err) {
+        console.error("Failed to scroll terminal:", err);
+      }
+    },
+    [taskId]
+  );
+
   // Resize 處理 - debounced，只在穩定後才 resize
   const lastSizeRef = useRef({ cols: 0, rows: 0 });
 
@@ -426,6 +442,7 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
         ref={containerRef}
         className="flex-1 overflow-hidden focus:outline-none relative"
         onClick={() => inputRef.current?.focus()}
+        onWheel={handleWheel}
       >
         <canvas
           ref={canvasRef}

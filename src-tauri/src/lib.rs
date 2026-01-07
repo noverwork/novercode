@@ -101,6 +101,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(store::StoreState::default())
         .setup(|app| {
             store::init_store(app.handle())?;
@@ -124,6 +126,7 @@ pub fn run() {
             terminal::terminal_write,
             terminal::terminal_resize,
             terminal::terminal_kill,
+            terminal::terminal_scroll,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

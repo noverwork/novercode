@@ -5,6 +5,7 @@ import { AddTaskDialog } from "./AddTaskDialog";
 import { AddProjectDialog } from "./AddProjectDialog";
 import { CanvasTerminal } from "./CanvasTerminal";
 import { DiffView } from "./DiffView";
+import { SettingsSheet } from "@/components/SettingsSheet";
 import { useKanban } from "@/hooks/useKanban";
 import { Folder, Trash2, Loader2, ChevronLeft, ChevronRight, Terminal, GitCompare } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -144,6 +145,7 @@ export function Board() {
               }}
             />
           )}
+          <SettingsSheet />
         </div>
       </header>
 

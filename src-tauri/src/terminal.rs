@@ -1,6 +1,6 @@
 use alacritty_terminal::event::{Event, EventListener, WindowSize};
 use alacritty_terminal::event_loop::{EventLoop, EventLoopSender, Msg};
-use alacritty_terminal::grid::Dimensions;
+use alacritty_terminal::grid::{Dimensions, Scroll};
 use alacritty_terminal::sync::FairMutex;
 use alacritty_terminal::term::test::TermSize;
 use alacritty_terminal::term::{Config as TermConfig, Term};
@@ -413,5 +413,48 @@ pub fn terminal_kill(id: String) -> Result<(), String> {
             .store(false, std::sync::atomic::Ordering::Relaxed);
         let _ = session.sender.send(Msg::Shutdown);
     }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn terminal_scroll(id: String, lines: i32) -> Result<(), String> {
+    let sessions = SESSIONS.lock();
+    let session = sessions
+        .get(&id)
+        .ok_or_else(|| "Session not found".to_string())?;
+
+    let is_alt_screen = {
+        let term = session.term.lock();
+        term.mode().contains(alacritty_terminal::term::TermMode::ALT_SCREEN)
+    };
+
+    if is_alt_screen {
+        // In alternate screen (TUI mode), send arrow keys to the program
+        // lines > 0 means scroll up (show older content) -> send Up arrow
+        // lines < 0 means scroll down (show newer content) -> send Down arrow
+        let arrow = if lines > 0 {
+            vec![27, 91, 65] // ESC [ A (Up)
+        } else {
+            vec![27, 91, 66] // ESC [ B (Down)
+        };
+
+        let count = lines.unsigned_abs() as usize;
+        for _ in 0..count {
+            session
+                .sender
+                .send(Msg::Input(arrow.clone().into()))
+                .map_err(|e| format!("Failed to send input: {e:?}"))?;
+        }
+    } else {
+        // Normal mode, use scrollback
+        let mut term = session.term.lock();
+        term.scroll_display(Scroll::Delta(lines));
+
+        // Mark dirty to trigger re-render
+        session
+            .dirty
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
     Ok(())
 }
