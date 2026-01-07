@@ -1,5 +1,6 @@
 import { createContext } from "react";
-import type { UpdateInfo, DownloadProgress } from "@/services/updater";
+
+import type { DownloadProgress,UpdateInfo } from "@/services/updater";
 
 export type UpdateStatus =
   | "idle"

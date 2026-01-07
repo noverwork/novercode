@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { Button } from "@/components/ui/button";
 import {
-  GitCommit,
-  FileSearch,
   Bug,
+  FileSearch,
+  GitCommit,
   Sparkles,
 } from "lucide-react";
+import { useCallback,useEffect, useRef, useState } from "react";
+
+import { Button } from "@/components/ui/button";
 
 interface TermCell {
   c: string;

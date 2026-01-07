@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback, type ReactNode } from "react";
+import { type ReactNode,useCallback, useEffect, useState } from "react";
+
 import {
   checkForUpdate,
   downloadAndInstallUpdate,
   restartApp,
 } from "@/services/updater";
+
 import {
   UpdateContext,
   type UpdateState,

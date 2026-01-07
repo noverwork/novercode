@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { DiffEditor } from "@monaco-editor/react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { invoke } from "@tauri-apps/api/core";
+import { ChevronDown,ChevronRight, FileCode, FilePlus, FileX, Folder, Loader2, RefreshCw } from "lucide-react";
+import { useCallback,useEffect, useState } from "react";
+
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Loader2, FileCode, FilePlus, FileX, Folder, ChevronRight, ChevronDown } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface DiffViewProps {
   workingDir?: string;

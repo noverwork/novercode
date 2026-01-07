@@ -1,14 +1,16 @@
-import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { TaskCard } from "./TaskCard";
-import { AddTaskDialog } from "./AddTaskDialog";
+import { ChevronLeft, ChevronRight, Folder, GitCompare,Loader2, Terminal, Trash2 } from "lucide-react";
+import { useEffect, useMemo,useState } from "react";
+
+import { SettingsSheet } from "@/components/SettingsSheet";
+import { Button } from "@/components/ui/button";
+import { useKanban } from "@/hooks/useKanban";
+
 import { AddProjectDialog } from "./AddProjectDialog";
+import { AddTaskDialog } from "./AddTaskDialog";
 import { CanvasTerminal } from "./CanvasTerminal";
 import { DiffView } from "./DiffView";
-import { SettingsSheet } from "@/components/SettingsSheet";
-import { useKanban } from "@/hooks/useKanban";
-import { Folder, Trash2, Loader2, ChevronLeft, ChevronRight, Terminal, GitCompare } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { TaskCard } from "./TaskCard";
 
 type WorktreeState =
   | { status: "idle" }

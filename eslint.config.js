@@ -3,6 +3,7 @@ import eslintJs from "@eslint/js";
 import eslintReact from "@eslint-react/eslint-plugin";
 import eslintPluginReactHooks from "eslint-plugin-react-hooks";
 import eslintPluginReactRefresh from "eslint-plugin-react-refresh";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
 import { defineConfig } from "eslint/config";
 import globals from "globals";
 import tseslint from "typescript-eslint";
@@ -17,6 +18,9 @@ export default defineConfig([
   {
     files: GLOB_TS,
     extends: [eslintJs.configs.recommended, tseslint.configs.recommended],
+    plugins: {
+      "simple-import-sort": simpleImportSort,
+    },
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -32,6 +36,8 @@ export default defineConfig([
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "prefer-const": "error",
       eqeqeq: ["error", "always"],
+      "simple-import-sort/imports": "error",
+      "simple-import-sort/exports": "error",
     },
   },
 

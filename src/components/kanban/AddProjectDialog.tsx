@@ -1,4 +1,8 @@
+import { open } from "@tauri-apps/plugin-dialog";
+import { FolderOpen,FolderPlus } from "lucide-react";
 import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -7,11 +11,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FolderPlus, FolderOpen } from "lucide-react";
-import { open } from "@tauri-apps/plugin-dialog";
 
 interface AddProjectDialogProps {
   onAdd: (name: string, path?: string, baseBranch?: string) => void | Promise<string>;
