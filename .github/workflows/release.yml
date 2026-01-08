@@ -49,9 +49,7 @@ jobs:
         run: npm ci
 
       - name: Import Apple Developer Certificate
-        id: import_cert
         if: matrix.platform == 'macos-latest'
-        continue-on-error: true
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -66,24 +64,19 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
 
-      - name: Setup signing identity
-        id: setup_signing
-        if: matrix.platform == 'macos-latest'
-        run: |
-          # TEMPORARY: Use ad-hoc signing for testing
-          # TODO: Re-enable proper certificate signing after APPLE_CERTIFICATE secret is fixed
-          echo "cert_id=-" >> $GITHUB_OUTPUT
-          echo "use_cert=false" >> $GITHUB_OUTPUT
-          echo "Using ad-hoc signing (-) for testing"
-
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # macOS signing - using ad-hoc, no notarization
-          APPLE_SIGNING_IDENTITY: ${{ steps.setup_signing.outputs.cert_id }}
+          # macOS signing and notarization
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: v__VERSION__
           releaseName: 'v__VERSION__'
