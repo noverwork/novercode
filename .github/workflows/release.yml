@@ -84,4 +84,5 @@ jobs:
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
+          tagName: ${{ github.ref_name }}
           args: ${{ matrix.args }}
