@@ -1,6 +1,7 @@
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { Download, RefreshCw, RotateCcw, Settings, Terminal } from "lucide-react";
-import { useEffect,useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,11 @@ export function SettingsSheet() {
   const [settings, setSettings] = useState<Settings>({});
   const [claudePathInput, setClaudePathInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [currentVersion, setCurrentVersion] = useState<string>("");
+
+  useEffect(() => {
+    getVersion().then(setCurrentVersion).catch(console.error);
+  }, []);
 
   const {
     status,
@@ -95,7 +101,7 @@ export function SettingsSheet() {
             <div className="p-3 rounded border border-green-900 bg-green-950/20 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-mono text-green-600">Current</span>
-                <span className="text-sm font-mono text-green-400">v0.1.0</span>
+                <span className="text-sm font-mono text-green-400">v{currentVersion}</span>
               </div>
 
               {/* Update Status */}
