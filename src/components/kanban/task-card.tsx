@@ -1,8 +1,8 @@
-import { Trash2 } from "lucide-react";
+import { Trash2 } from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Task } from "@/hooks/useKanban";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Task } from '@/hooks/useKanban';
 
 interface TaskCardProps {
   task: Task;
@@ -17,8 +17,8 @@ export function TaskCard({ task, selected, onDelete, onClick }: TaskCardProps) {
       onClick={() => onClick?.(task.id)}
       className={`border cursor-pointer transition-colors ${
         selected
-          ? "border-green-500 bg-green-950/40"
-          : "border-green-900/50 bg-green-950/20 hover:border-green-500/50 hover:bg-green-950/40"
+          ? 'border-green-500 bg-green-950/40'
+          : 'border-green-900/50 bg-green-950/20 hover:border-green-500/50 hover:bg-green-950/40'
       }`}
     >
       <CardHeader className="p-3 pb-2 flex flex-row items-start gap-2">
@@ -40,9 +40,7 @@ export function TaskCard({ task, selected, onDelete, onClick }: TaskCardProps) {
       </CardHeader>
       {task.description && (
         <CardContent className="p-3 pt-0">
-          <p className="text-xs text-green-700 whitespace-pre-wrap font-mono">
-            {task.description}
-          </p>
+          <p className="text-xs text-green-700 whitespace-pre-wrap font-mono">{task.description}</p>
         </CardContent>
       )}
     </Card>

@@ -1,14 +1,8 @@
-import { createContext } from "react";
+import { createContext } from 'react';
 
-import type { DownloadProgress,UpdateInfo } from "@/services/updater";
+import type { DownloadProgress, UpdateInfo } from '@/services/updater';
 
-export type UpdateStatus =
-  | "idle"
-  | "checking"
-  | "available"
-  | "downloading"
-  | "ready"
-  | "error";
+export type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
 
 export interface UpdateState {
   status: UpdateStatus;

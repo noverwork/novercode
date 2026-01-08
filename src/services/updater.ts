@@ -1,5 +1,5 @@
-import { relaunch } from "@tauri-apps/plugin-process";
-import { check, type Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from '@tauri-apps/plugin-process';
+import { check, type Update } from '@tauri-apps/plugin-updater';
 
 export interface UpdateInfo {
   version: string;
@@ -29,7 +29,7 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
     }
     return null;
   } catch (error) {
-    console.error("Failed to check for update:", error);
+    console.error('Failed to check for update:', error);
     throw error;
   }
 }
@@ -38,7 +38,7 @@ export async function downloadAndInstallUpdate(
   onProgress?: (progress: DownloadProgress) => void
 ): Promise<void> {
   if (!pendingUpdate) {
-    throw new Error("No pending update");
+    throw new Error('No pending update');
   }
 
   let downloaded = 0;
@@ -46,17 +46,17 @@ export async function downloadAndInstallUpdate(
 
   await pendingUpdate.downloadAndInstall((event) => {
     switch (event.event) {
-      case "Started":
+      case 'Started':
         contentLength = event.data.contentLength ?? null;
         // Download started
         break;
-      case "Progress":
+      case 'Progress':
         downloaded += event.data.chunkLength;
         if (onProgress) {
           onProgress({ downloaded, total: contentLength });
         }
         break;
-      case "Finished":
+      case 'Finished':
         // Download finished
         break;
     }

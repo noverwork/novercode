@@ -1,19 +1,13 @@
-import { getVersion } from "@tauri-apps/api/app";
-import { invoke } from "@tauri-apps/api/core";
-import { Download, RefreshCw, RotateCcw, Settings, Terminal } from "lucide-react";
-import { useEffect, useState } from "react";
+import { getVersion } from '@tauri-apps/api/app';
+import { invoke } from '@tauri-apps/api/core';
+import { Download, RefreshCw, RotateCcw, Settings, Terminal } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { useUpdate } from "@/hooks/useUpdate";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useUpdate } from '@/hooks/useUpdate';
 
 interface Settings {
   claudePath?: string | null;
@@ -22,30 +16,24 @@ interface Settings {
 export function SettingsSheet() {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<Settings>({});
-  const [claudePathInput, setClaudePathInput] = useState("");
+  const [claudePathInput, setClaudePathInput] = useState('');
   const [saving, setSaving] = useState(false);
-  const [currentVersion, setCurrentVersion] = useState<string>("");
+  const [currentVersion, setCurrentVersion] = useState<string>('');
 
   useEffect(() => {
     getVersion().then(setCurrentVersion).catch(console.error);
   }, []);
 
-  const {
-    status,
-    updateInfo,
-    downloadProgress,
-    checkUpdate,
-    downloadUpdate,
-    restart,
-  } = useUpdate();
+  const { status, updateInfo, downloadProgress, checkUpdate, downloadUpdate, restart } =
+    useUpdate();
 
   // Load settings on mount and when sheet opens
   useEffect(() => {
     if (open) {
-      invoke<Settings>("get_settings")
+      invoke<Settings>('get_settings')
         .then((s) => {
           setSettings(s);
-          setClaudePathInput(s.claudePath || "");
+          setClaudePathInput(s.claudePath || '');
         })
         .catch(console.error);
     }
@@ -54,12 +42,12 @@ export function SettingsSheet() {
   const saveClaudePath = async () => {
     setSaving(true);
     try {
-      const updated = await invoke<Settings>("update_settings", {
+      const updated = await invoke<Settings>('update_settings', {
         claudePath: claudePathInput || null,
       });
       setSettings(updated);
     } catch (err) {
-      console.error("Failed to save settings:", err);
+      console.error('Failed to save settings:', err);
     } finally {
       setSaving(false);
     }
@@ -95,9 +83,7 @@ export function SettingsSheet() {
         <div className="mt-6 space-y-6">
           {/* Version & Update Section */}
           <div className="space-y-3">
-            <h3 className="text-xs text-green-700 font-mono uppercase tracking-wider">
-              Version
-            </h3>
+            <h3 className="text-xs text-green-700 font-mono uppercase tracking-wider">Version</h3>
             <div className="p-3 rounded border border-green-900 bg-green-950/20 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-mono text-green-600">Current</span>
@@ -105,13 +91,11 @@ export function SettingsSheet() {
               </div>
 
               {/* Update Status */}
-              {status === "available" && updateInfo && (
+              {status === 'available' && updateInfo && (
                 <div className="pt-2 border-t border-green-900 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-mono text-green-600">Available</span>
-                    <span className="text-sm font-mono text-green-400">
-                      v{updateInfo.version}
-                    </span>
+                    <span className="text-sm font-mono text-green-400">v{updateInfo.version}</span>
                   </div>
                   <Button
                     size="sm"
@@ -124,7 +108,7 @@ export function SettingsSheet() {
                 </div>
               )}
 
-              {status === "downloading" && (
+              {status === 'downloading' && (
                 <div className="pt-2 border-t border-green-900 space-y-2">
                   <div className="flex items-center justify-between text-xs font-mono">
                     <span className="text-green-600">Downloading...</span>
@@ -133,9 +117,9 @@ export function SettingsSheet() {
                         ? `${formatBytes(downloadProgress.downloaded)}${
                             downloadProgress.total
                               ? ` / ${formatBytes(downloadProgress.total)}`
-                              : ""
+                              : ''
                           }`
-                        : "..."}
+                        : '...'}
                     </span>
                   </div>
                   <div className="h-1 bg-green-950 rounded overflow-hidden">
@@ -147,7 +131,7 @@ export function SettingsSheet() {
                 </div>
               )}
 
-              {status === "ready" && (
+              {status === 'ready' && (
                 <div className="pt-2 border-t border-green-900 space-y-2">
                   <p className="text-xs font-mono text-green-600">
                     Update ready. Restart to apply.
@@ -164,7 +148,7 @@ export function SettingsSheet() {
               )}
 
               {/* Check for Updates Button */}
-              {(status === "idle" || status === "error") && (
+              {(status === 'idle' || status === 'error') && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -176,7 +160,7 @@ export function SettingsSheet() {
                 </Button>
               )}
 
-              {status === "checking" && (
+              {status === 'checking' && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -212,14 +196,14 @@ export function SettingsSheet() {
                   Leave empty to use PATH. Required for production builds.
                 </p>
               </div>
-              {(claudePathInput !== (settings.claudePath || "")) && (
+              {claudePathInput !== (settings.claudePath || '') && (
                 <Button
                   size="sm"
                   className="w-full bg-green-900/50 hover:bg-green-800/50 text-green-400 border border-green-700"
                   onClick={saveClaudePath}
                   disabled={saving}
                 >
-                  {saving ? "Saving..." : "Save Path"}
+                  {saving ? 'Saving...' : 'Save Path'}
                 </Button>
               )}
             </div>
@@ -227,16 +211,12 @@ export function SettingsSheet() {
 
           {/* About Section */}
           <div className="space-y-3">
-            <h3 className="text-xs text-green-700 font-mono uppercase tracking-wider">
-              About
-            </h3>
+            <h3 className="text-xs text-green-700 font-mono uppercase tracking-wider">About</h3>
             <div className="p-3 rounded border border-green-900 bg-green-950/20 space-y-1">
               <p className="text-xs font-mono text-green-600">
                 NOVERCODE - Task-based Development Environment
               </p>
-              <p className="text-xs font-mono text-green-800">
-                Built with Tauri + React
-              </p>
+              <p className="text-xs font-mono text-green-800">Built with Tauri + React</p>
             </div>
           </div>
         </div>

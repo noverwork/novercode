@@ -1,7 +1,7 @@
-import { Loader2,Plus } from "lucide-react";
-import { useState } from "react";
+import { Loader2, Plus } from 'lucide-react';
+import { useState } from 'react';
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -9,9 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface AddTaskDialogProps {
   onAdd: (title: string) => void | Promise<void> | Promise<string>;
@@ -19,7 +19,7 @@ interface AddTaskDialogProps {
 
 export function AddTaskDialog({ onAdd }: AddTaskDialogProps) {
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,7 +28,7 @@ export function AddTaskDialog({ onAdd }: AddTaskDialogProps) {
       setIsLoading(true);
       try {
         await onAdd(title.trim());
-        setTitle("");
+        setTitle('');
         setOpen(false);
       } finally {
         setIsLoading(false);
@@ -50,7 +50,7 @@ export function AddTaskDialog({ onAdd }: AddTaskDialogProps) {
       <DialogContent className="bg-black border border-green-900 text-green-500 font-mono">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-green-500">{"// new_task"}</DialogTitle>
+            <DialogTitle className="text-green-500">{'// new_task'}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <div className="space-y-2">
@@ -89,7 +89,7 @@ export function AddTaskDialog({ onAdd }: AddTaskDialogProps) {
                   [creating...]
                 </>
               ) : (
-                "[create]"
+                '[create]'
               )}
             </Button>
           </DialogFooter>

@@ -1,14 +1,9 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import {
-  Bug,
-  FileSearch,
-  GitCommit,
-  Sparkles,
-} from "lucide-react";
-import { useCallback,useEffect, useRef, useState } from "react";
+import { invoke } from '@tauri-apps/api/core';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { Bug, FileSearch, GitCommit, Sparkles } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 
 interface TermCell {
   c: string;
@@ -67,7 +62,7 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
     const currentGrid = gridRef.current;
     if (!canvas || !container || !currentGrid) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
@@ -92,12 +87,12 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // 清除背景
-    ctx.fillStyle = "#0a0a0a";
+    ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, width, height);
 
     // 設定字體
     ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
-    ctx.textBaseline = "top";
+    ctx.textBaseline = 'top';
 
     // 繪製每個 cell
     for (let row = 0; row < rows && row < cells.length; row++) {
@@ -113,13 +108,13 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
 
         // 背景
         const bgColor = `rgb(${cell.bg[0]}, ${cell.bg[1]}, ${cell.bg[2]})`;
-        if (bgColor !== "rgb(10, 10, 10)") {
+        if (bgColor !== 'rgb(10, 10, 10)') {
           ctx.fillStyle = bgColor;
           ctx.fillRect(x, y, cellWidth, CELL_HEIGHT);
         }
 
         // 文字
-        if (cell.c && cell.c !== " ") {
+        if (cell.c && cell.c !== ' ') {
           const fgColor = `rgb(${cell.fg[0]}, ${cell.fg[1]}, ${cell.fg[2]})`;
           ctx.fillStyle = fgColor;
 
@@ -151,14 +146,14 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
     if (cursor_visible && cursor_y < rows && cursor_x < cols) {
       const cursorX = cursor_x * CELL_WIDTH;
       const cursorY = cursor_y * CELL_HEIGHT;
-      ctx.fillStyle = "#22c55e";
+      ctx.fillStyle = '#22c55e';
       ctx.fillRect(cursorX, cursorY, CELL_WIDTH, CELL_HEIGHT);
 
       // 反轉游標位置的文字顏色
       if (cells[cursor_y] && cells[cursor_y][cursor_x]) {
         const cell = cells[cursor_y][cursor_x];
-        if (cell.c && cell.c !== " ") {
-          ctx.fillStyle = "#0a0a0a";
+        if (cell.c && cell.c !== ' ') {
+          ctx.fillStyle = '#0a0a0a';
           ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
           ctx.fillText(cell.c, cursorX, cursorY + 2);
         }
@@ -177,17 +172,14 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
     const init = async () => {
       try {
         // 監聯渲染事件
-        unlistenRender = await listen<TerminalGrid>(
-          `terminal-render-${taskId}`,
-          (event) => {
-            gridRef.current = event.payload;
-            if (!hasRenderedRef.current) {
-              hasRenderedRef.current = true;
-              setIsRunning(true);
-            }
-            requestAnimationFrame(render);
+        unlistenRender = await listen<TerminalGrid>(`terminal-render-${taskId}`, (event) => {
+          gridRef.current = event.payload;
+          if (!hasRenderedRef.current) {
+            hasRenderedRef.current = true;
+            setIsRunning(true);
           }
-        );
+          requestAnimationFrame(render);
+        });
 
         // 監聽退出事件
         unlistenExit = await listen(`terminal-exit-${taskId}`, () => {
@@ -195,7 +187,7 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
         });
 
         // 創建終端
-        await invoke("terminal_create", {
+        await invoke('terminal_create', {
           id: taskId,
           cols,
           rows,
@@ -203,7 +195,7 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
         });
         // isRunning will be set when first render event is received
       } catch (e) {
-        console.error("Failed to create terminal:", e);
+        console.error('Failed to create terminal:', e);
       }
     };
 
@@ -236,55 +228,55 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
 
       // Special keys
       switch (e.key) {
-        case "Enter":
+        case 'Enter':
           data = [13];
           handled = true;
           break;
-        case "Backspace":
+        case 'Backspace':
           data = [127];
           handled = true;
           break;
-        case "Tab":
+        case 'Tab':
           data = [9];
           handled = true;
           break;
-        case "Escape":
+        case 'Escape':
           data = [27];
           handled = true;
           break;
-        case "ArrowUp":
+        case 'ArrowUp':
           data = [27, 91, 65];
           handled = true;
           break;
-        case "ArrowDown":
+        case 'ArrowDown':
           data = [27, 91, 66];
           handled = true;
           break;
-        case "ArrowRight":
+        case 'ArrowRight':
           data = [27, 91, 67];
           handled = true;
           break;
-        case "ArrowLeft":
+        case 'ArrowLeft':
           data = [27, 91, 68];
           handled = true;
           break;
-        case "Home":
+        case 'Home':
           data = [27, 91, 72];
           handled = true;
           break;
-        case "End":
+        case 'End':
           data = [27, 91, 70];
           handled = true;
           break;
-        case "PageUp":
+        case 'PageUp':
           data = [27, 91, 53, 126];
           handled = true;
           break;
-        case "PageDown":
+        case 'PageDown':
           data = [27, 91, 54, 126];
           handled = true;
           break;
-        case "Delete":
+        case 'Delete':
           data = [27, 91, 51, 126];
           handled = true;
           break;
@@ -303,9 +295,9 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
         e.preventDefault();
         if (data.length > 0) {
           try {
-            await invoke("terminal_write", { id: taskId, data });
+            await invoke('terminal_write', { id: taskId, data });
           } catch (err) {
-            console.error("Failed to write to terminal:", err);
+            console.error('Failed to write to terminal:', err);
           }
         }
       }
@@ -321,11 +313,11 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
       if (value && !isComposingRef.current) {
         const data = Array.from(new TextEncoder().encode(value));
         try {
-          await invoke("terminal_write", { id: taskId, data });
+          await invoke('terminal_write', { id: taskId, data });
         } catch (err) {
-          console.error("Failed to write to terminal:", err);
+          console.error('Failed to write to terminal:', err);
         }
-        target.value = ""; // Clear after sending
+        target.value = ''; // Clear after sending
       }
     },
     [taskId]
@@ -344,11 +336,11 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
       if (value) {
         const data = Array.from(new TextEncoder().encode(value));
         try {
-          await invoke("terminal_write", { id: taskId, data });
+          await invoke('terminal_write', { id: taskId, data });
         } catch (err) {
-          console.error("Failed to write to terminal:", err);
+          console.error('Failed to write to terminal:', err);
         }
-        target.value = ""; // Clear after sending
+        target.value = ''; // Clear after sending
       }
     },
     [taskId]
@@ -362,9 +354,9 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
       // deltaY < 0 表示向上滾動，需要往前看（正數）
       const lines = Math.sign(e.deltaY) * -3; // 每次滾動 3 行
       try {
-        await invoke("terminal_scroll", { id: taskId, lines });
+        await invoke('terminal_scroll', { id: taskId, lines });
       } catch (err) {
-        console.error("Failed to scroll terminal:", err);
+        console.error('Failed to scroll terminal:', err);
       }
     },
     [taskId]
@@ -386,7 +378,7 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
         // Only resize if dimensions changed by more than 2 cells (avoid jitter)
         if (Math.abs(cols - last.cols) > 2 || Math.abs(rows - last.rows) > 2) {
           lastSizeRef.current = { cols, rows };
-          invoke("terminal_resize", { id: taskId, cols, rows }).catch(console.error);
+          invoke('terminal_resize', { id: taskId, cols, rows }).catch(console.error);
         }
       }, 200); // Longer debounce
     };
@@ -406,23 +398,23 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
 
   // 快捷指令
   const quickCommands = [
-    { icon: GitCommit, label: "commit", command: "/commit\n" },
-    { icon: FileSearch, label: "review", command: "review the changes I made\n" },
-    { icon: Bug, label: "fix", command: "fix the errors\n" },
-    { icon: Sparkles, label: "improve", command: "improve this code\n" },
+    { icon: GitCommit, label: 'commit', command: '/commit\n' },
+    { icon: FileSearch, label: 'review', command: 'review the changes I made\n' },
+    { icon: Bug, label: 'fix', command: 'fix the errors\n' },
+    { icon: Sparkles, label: 'improve', command: 'improve this code\n' },
   ];
 
   const handleQuickCommand = async (command: string) => {
     const data = Array.from(new TextEncoder().encode(command));
     try {
-      await invoke("terminal_write", { id: taskId, data });
+      await invoke('terminal_write', { id: taskId, data });
     } catch (e) {
-      console.error("Failed to send command:", e);
+      console.error('Failed to send command:', e);
     }
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#0a0a0a]" style={{ minHeight: "400px" }}>
+    <div className="h-full flex flex-col bg-[#0a0a0a]" style={{ minHeight: '400px' }}>
       {/* Quick Commands */}
       <div className="border-b border-green-900/50 px-4 py-2 flex items-center gap-2">
         {quickCommands.map((cmd) => (
@@ -449,7 +441,7 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
         <canvas
           ref={canvasRef}
           className="absolute inset-0"
-          style={{ imageRendering: "pixelated" }}
+          style={{ imageRendering: 'pixelated' }}
         />
         {/* Loading overlay */}
         {!isRunning && (
@@ -469,11 +461,11 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
             height: 1,
             top: 0,
             left: 0,
-            resize: "none",
-            border: "none",
-            outline: "none",
+            resize: 'none',
+            border: 'none',
+            outline: 'none',
             padding: 0,
-            caretColor: "transparent",
+            caretColor: 'transparent',
           }}
           autoComplete="off"
           autoCorrect="off"

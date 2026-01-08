@@ -1,28 +1,36 @@
-import { invoke } from "@tauri-apps/api/core";
-import { ChevronLeft, ChevronRight, Folder, GitCompare,Loader2, Terminal, Trash2 } from "lucide-react";
-import { useEffect, useMemo,useState } from "react";
+import { invoke } from '@tauri-apps/api/core';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Folder,
+  GitCompare,
+  Loader2,
+  Terminal,
+  Trash2,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { SettingsSheet } from "@/components/settings-sheet";
-import { Button } from "@/components/ui/button";
-import { useKanban } from "@/hooks/useKanban";
+import { SettingsSheet } from '@/components/settings-sheet';
+import { Button } from '@/components/ui/button';
+import { useKanban } from '@/hooks/useKanban';
 
-import { AddProjectDialog } from "./add-project-dialog";
-import { AddTaskDialog } from "./add-task-dialog";
-import { CanvasTerminal } from "./canvas-terminal";
-import { DiffView } from "./diff-view";
-import { TaskCard } from "./task-card";
+import { AddProjectDialog } from './add-project-dialog';
+import { AddTaskDialog } from './add-task-dialog';
+import { CanvasTerminal } from './canvas-terminal';
+import { DiffView } from './diff-view';
+import { TaskCard } from './task-card';
 
 type WorktreeState =
-  | { status: "idle" }
-  | { status: "loading"; taskId: string }
-  | { status: "ready"; taskId: string; dir: string | null };
+  | { status: 'idle' }
+  | { status: 'loading'; taskId: string }
+  | { status: 'ready'; taskId: string; dir: string | null };
 
 // Kill terminal helper
 async function killTerminal(taskId: string) {
   try {
-    await invoke("terminal_kill", { id: taskId });
+    await invoke('terminal_kill', { id: taskId });
   } catch (e) {
-    console.error("Failed to kill terminal:", e);
+    console.error('Failed to kill terminal:', e);
   }
 }
 
@@ -40,13 +48,13 @@ export function Board() {
     deleteTask,
   } = useKanban();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [worktree, setWorktree] = useState<WorktreeState>({ status: "idle" });
+  const [worktree, setWorktree] = useState<WorktreeState>({ status: 'idle' });
   const [projectsCollapsed, setProjectsCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<"claude" | "diff">("claude");
+  const [activeTab, setActiveTab] = useState<'claude' | 'diff'>('claude');
 
   // Derived state from worktree
   const workingDir = useMemo(() => {
-    if (worktree.status === "ready" && worktree.taskId === selectedTaskId) {
+    if (worktree.status === 'ready' && worktree.taskId === selectedTaskId) {
       return worktree.dir;
     }
     return null;
@@ -54,7 +62,7 @@ export function Board() {
 
   const isWorktreeReady = useMemo(() => {
     if (!selectedTaskId) return false;
-    return worktree.status === "ready" && worktree.taskId === selectedTaskId;
+    return worktree.status === 'ready' && worktree.taskId === selectedTaskId;
   }, [worktree, selectedTaskId]);
 
   // 選擇 task 時建立 worktree
@@ -64,36 +72,42 @@ export function Board() {
     // 如果 project 沒有 path，直接標記為 ready
     if (!currentProject?.path) {
       // eslint-disable-next-line react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect -- intentional sync for early return
-      setWorktree({ status: "ready", taskId: selectedTaskId, dir: null });
+      setWorktree({ status: 'ready', taskId: selectedTaskId, dir: null });
       return;
     }
 
     // Set loading state - intentional sync setState for loading indicator
     // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
-    setWorktree({ status: "loading", taskId: selectedTaskId });
+    setWorktree({ status: 'loading', taskId: selectedTaskId });
 
     let cancelled = false;
     const setupWorktree = async () => {
       try {
-        const path = await invoke<string>("create_worktree", {
+        const path = await invoke<string>('create_worktree', {
           taskId: selectedTaskId,
           projectName: currentProject.name,
           projectPath: currentProject.path,
           baseBranch: currentProject.baseBranch,
         });
         if (!cancelled) {
-          setWorktree({ status: "ready", taskId: selectedTaskId, dir: path });
+          setWorktree({ status: 'ready', taskId: selectedTaskId, dir: path });
         }
       } catch (e) {
-        console.error("Failed to create worktree:", e);
+        console.error('Failed to create worktree:', e);
         if (!cancelled) {
-          setWorktree({ status: "ready", taskId: selectedTaskId, dir: currentProject.path || null });
+          setWorktree({
+            status: 'ready',
+            taskId: selectedTaskId,
+            dir: currentProject.path || null,
+          });
         }
       }
     };
 
     setupWorktree();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedTaskId, currentProject?.path, currentProject?.name, currentProject?.baseBranch]);
 
   // 刪除 task 時也移除 worktree
@@ -105,13 +119,13 @@ export function Board() {
     // 移除 worktree
     if (currentProject) {
       try {
-        await invoke("remove_worktree", {
+        await invoke('remove_worktree', {
           taskId: id,
           projectName: currentProject.name,
           projectPath: currentProject.path,
         });
       } catch (e) {
-        console.error("Failed to remove worktree:", e);
+        console.error('Failed to remove worktree:', e);
       }
     }
     await deleteTask(id);
@@ -127,13 +141,13 @@ export function Board() {
       for (const t of projectTasks) {
         await killTerminal(t.id);
         try {
-          await invoke("remove_worktree", {
+          await invoke('remove_worktree', {
             taskId: t.id,
             projectName: project.name,
             projectPath: project.path,
           });
         } catch (e) {
-          console.error("Failed to remove worktree:", e);
+          console.error('Failed to remove worktree:', e);
         }
       }
     }
@@ -154,14 +168,12 @@ export function Board() {
 
       {/* Header */}
       <header className="border-b border-green-900 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-green-500 text-glow">
-          [ NOVERCODE ]
-        </h1>
+        <h1 className="text-xl font-bold text-green-500 text-glow">[ NOVERCODE ]</h1>
         <div className="flex items-center gap-2">
           {currentProjectId && (
             <AddTaskDialog
               onAdd={async (title) => {
-                const newId = await addTask(title, "");
+                const newId = await addTask(title, '');
                 setSelectedTaskId(newId);
               }}
             />
@@ -173,7 +185,9 @@ export function Board() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Project List - Far Left */}
-        <div className={`${projectsCollapsed ? "w-10" : "w-48"} border-r border-green-900 flex flex-col transition-[width] duration-150 ease-out`}>
+        <div
+          className={`${projectsCollapsed ? 'w-10' : 'w-48'} border-r border-green-900 flex flex-col transition-[width] duration-150 ease-out`}
+        >
           <div className="h-9 px-2 border-b border-green-900 flex items-center justify-between gap-1">
             {!projectsCollapsed && (
               <>
@@ -187,7 +201,11 @@ export function Board() {
               className="h-5 w-5 text-green-700 hover:text-green-400 hover:bg-green-900/30"
               onClick={() => setProjectsCollapsed(!projectsCollapsed)}
             >
-              {projectsCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+              {projectsCollapsed ? (
+                <ChevronRight className="h-3 w-3" />
+              ) : (
+                <ChevronLeft className="h-3 w-3" />
+              )}
             </Button>
           </div>
           <div className="flex-1 overflow-auto p-2 space-y-1">
@@ -197,8 +215,8 @@ export function Board() {
                   key={project.id}
                   className={`flex items-center justify-center p-1.5 rounded cursor-pointer transition-colors ${
                     project.id === currentProjectId
-                      ? "bg-green-900/30 text-green-400"
-                      : "text-green-700 hover:bg-green-900/20 hover:text-green-500"
+                      ? 'bg-green-900/30 text-green-400'
+                      : 'text-green-700 hover:bg-green-900/20 hover:text-green-500'
                   }`}
                   onClick={() => {
                     setCurrentProjectId(project.id);
@@ -219,8 +237,8 @@ export function Board() {
                   key={project.id}
                   className={`group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer font-mono text-sm transition-colors ${
                     project.id === currentProjectId
-                      ? "bg-green-900/30 text-green-400"
-                      : "text-green-700 hover:bg-green-900/20 hover:text-green-500"
+                      ? 'bg-green-900/30 text-green-400'
+                      : 'text-green-700 hover:bg-green-900/20 hover:text-green-500'
                   }`}
                   onClick={() => {
                     setCurrentProjectId(project.id);
@@ -250,7 +268,7 @@ export function Board() {
         <div className="w-72 border-r border-green-900 flex flex-col">
           <div className="h-9 px-3 border-b border-green-900 flex items-center">
             <span className="text-xs text-green-700 font-mono">
-              {currentProject ? `tasks / ${currentProject.name}` : "tasks"}
+              {currentProject ? `tasks / ${currentProject.name}` : 'tasks'}
             </span>
           </div>
           <div className="flex-1 overflow-auto p-3">
@@ -286,22 +304,22 @@ export function Board() {
               {/* Tabs */}
               <div className="h-9 flex items-center px-2 gap-1">
                 <button
-                  onClick={() => setActiveTab("claude")}
+                  onClick={() => setActiveTab('claude')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-xs transition-colors ${
-                    activeTab === "claude"
-                      ? "bg-green-900/40 text-green-400"
-                      : "text-green-700 hover:bg-green-900/20 hover:text-green-500"
+                    activeTab === 'claude'
+                      ? 'bg-green-900/40 text-green-400'
+                      : 'text-green-700 hover:bg-green-900/20 hover:text-green-500'
                   }`}
                 >
                   <Terminal className="h-3 w-3" />
                   claude
                 </button>
                 <button
-                  onClick={() => setActiveTab("diff")}
+                  onClick={() => setActiveTab('diff')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-xs transition-colors ${
-                    activeTab === "diff"
-                      ? "bg-green-900/40 text-green-400"
-                      : "text-green-700 hover:bg-green-900/20 hover:text-green-500"
+                    activeTab === 'diff'
+                      ? 'bg-green-900/40 text-green-400'
+                      : 'text-green-700 hover:bg-green-900/20 hover:text-green-500'
                   }`}
                 >
                   <GitCompare className="h-3 w-3" />
@@ -311,11 +329,8 @@ export function Board() {
 
               {/* Content */}
               <div className="flex-1 overflow-hidden">
-                {activeTab === "claude" ? (
-                  <CanvasTerminal
-                    taskId={selectedTaskId}
-                    workingDir={workingDir || undefined}
-                  />
+                {activeTab === 'claude' ? (
+                  <CanvasTerminal taskId={selectedTaskId} workingDir={workingDir || undefined} />
                 ) : (
                   <DiffView workingDir={workingDir || undefined} />
                 )}
@@ -328,7 +343,7 @@ export function Board() {
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-green-800 font-mono">
-              <p>{currentProjectId ? "select a task to start" : "select a project"}</p>
+              <p>{currentProjectId ? 'select a task to start' : 'select a project'}</p>
             </div>
           )}
         </div>

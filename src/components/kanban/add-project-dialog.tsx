@@ -1,8 +1,8 @@
-import { open } from "@tauri-apps/plugin-dialog";
-import { FolderOpen,FolderPlus } from "lucide-react";
-import { useState } from "react";
+import { open } from '@tauri-apps/plugin-dialog';
+import { FolderOpen, FolderPlus } from 'lucide-react';
+import { useState } from 'react';
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -10,9 +10,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface AddProjectDialogProps {
   onAdd: (name: string, path?: string, baseBranch?: string) => void | Promise<string>;
@@ -27,23 +27,23 @@ function extractName(path: string): string {
     return gitMatch[1];
   }
   // Local path: /path/to/folder -> folder
-  const parts = path.replace(/[/\\]+$/, "").split(/[/\\]/);
+  const parts = path.replace(/[/\\]+$/, '').split(/[/\\]/);
   return parts[parts.length - 1] || path;
 }
 
 export function AddProjectDialog({ onAdd }: AddProjectDialogProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [path, setPath] = useState("");
-  const [baseBranch, setBaseBranch] = useState("main");
+  const [path, setPath] = useState('');
+  const [baseBranch, setBaseBranch] = useState('main');
 
-  const derivedName = path.trim() ? extractName(path.trim()) : "";
+  const derivedName = path.trim() ? extractName(path.trim()) : '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (derivedName) {
       await onAdd(derivedName, path.trim() || undefined, baseBranch.trim() || undefined);
-      setPath("");
-      setBaseBranch("main");
+      setPath('');
+      setBaseBranch('main');
       setDialogOpen(false);
     }
   };
@@ -52,9 +52,9 @@ export function AddProjectDialog({ onAdd }: AddProjectDialogProps) {
     const selected = await open({
       directory: true,
       multiple: false,
-      title: "Select Project Folder",
+      title: 'Select Project Folder',
     });
-    if (selected && typeof selected === "string") {
+    if (selected && typeof selected === 'string') {
       setPath(selected);
     }
   };
@@ -73,7 +73,7 @@ export function AddProjectDialog({ onAdd }: AddProjectDialogProps) {
       <DialogContent className="bg-black border border-green-900 text-green-500 font-mono">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-green-500">{"// new_project"}</DialogTitle>
+            <DialogTitle className="text-green-500">{'// new_project'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">

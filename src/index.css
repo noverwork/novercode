@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @layer base {
   :root {
@@ -35,19 +35,20 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-family:
+      'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
   }
   /* Allow text selection for inputs, textareas, and content with select class */
   input,
   textarea,
-  [contenteditable="true"],
+  [contenteditable='true'],
   .selectable {
     user-select: text !important;
     -webkit-user-select: text !important;
   }
   /* Pointer cursor for buttons and interactive elements */
   button,
-  [role="button"],
+  [role='button'],
   a,
   .cursor-pointer {
     cursor: pointer !important;
@@ -82,8 +83,14 @@
 
 /* Terminal effects */
 @keyframes cursor-blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
 }
 
 .cursor-blink {
@@ -91,8 +98,15 @@
 }
 
 @keyframes text-glow {
-  0%, 100% { text-shadow: 0 0 5px currentColor; }
-  50% { text-shadow: 0 0 10px currentColor, 0 0 20px currentColor; }
+  0%,
+  100% {
+    text-shadow: 0 0 5px currentColor;
+  }
+  50% {
+    text-shadow:
+      0 0 10px currentColor,
+      0 0 20px currentColor;
+  }
 }
 
 .text-glow {

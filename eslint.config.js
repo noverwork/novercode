@@ -1,6 +1,7 @@
 // @ts-check
 import eslintJs from "@eslint/js";
 import eslintReact from "@eslint-react/eslint-plugin";
+import eslintPluginReactCompiler from "eslint-plugin-react-compiler";
 import eslintPluginReactHooks from "eslint-plugin-react-hooks";
 import eslintPluginReactRefresh from "eslint-plugin-react-refresh";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
@@ -44,12 +45,16 @@ export default defineConfig([
   // React specific configurations (src only)
   {
     files: GLOB_SRC,
+    plugins: {
+      "react-compiler": eslintPluginReactCompiler,
+    },
     extends: [
       eslintReact.configs["recommended-typescript"],
       eslintPluginReactHooks.configs.flat?.["recommended-latest"] ?? [],
       eslintPluginReactRefresh.configs.recommended,
     ],
     rules: {
+      "react-compiler/react-compiler": "warn",
       // shadcn/ui uses forwardRef - ignore for ui components
       "@eslint-react/no-forward-ref": "off",
       // Allow useContext (use() requires Suspense boundary)

@@ -9,11 +9,21 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "set-version": "npx tsx scripts/set-version.ts",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,md,json}\"",
     "lint": "eslint src --max-warnings 0",
     "lint:fix": "eslint src --fix",
     "lint:rust": "cd src-tauri && cargo clippy",
+    "format:rust": "cd src-tauri && cargo fmt --",
+    "format:rust:check": "cd src-tauri && cargo fmt -- --check",
+    "typecheck": "tsc --noEmit",
+    "check:all": "npm run format:check && npm run lint && npm run typecheck && npm run format:rust:check && npm run lint:rust",
+    "fix:all": "npm run format && npm run lint:fix && npm run format:rust",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "lint:all": "npm run lint && npm run lint:rust",
-    "check": "npm run lint:all && npm run build"
+    "check": "npm run lint:all && npm run build",
+    "prepare": "husky"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -45,16 +55,32 @@
     "@vitejs/plugin-react": "^4.6.0",
     "autoprefixer": "^10.4.23",
     "eslint": "^9.39.2",
+    "eslint-plugin-react-compiler": "^19.1.0-rc.2",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.26",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "globals": "^17.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "postcss": "^8.5.6",
+    "prettier": "^3.7.4",
     "tailwindcss": "^4.1.18",
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.21.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.52.0",
     "vite": "^7.0.4"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "src/**/*.{css,md,json}": [
+      "prettier --write"
+    ],
+    "src-tauri/**/*.rs": [
+      "cargo fmt --"
+    ]
   }
 }

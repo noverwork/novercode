@@ -1,22 +1,15 @@
-import { type ReactNode,useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 
-import {
-  checkForUpdate,
-  downloadAndInstallUpdate,
-  restartApp,
-} from "@/services/updater";
+import { checkForUpdate, downloadAndInstallUpdate, restartApp } from '@/services/updater';
 
-import {
-  UpdateContext,
-  type UpdateState,
-} from "./UpdateContext";
+import { UpdateContext, type UpdateState } from './UpdateContext';
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // 每小時檢查一次
 const INITIAL_CHECK_DELAY_MS = 5000; // 啟動 5 秒後首次檢查
 
 export function UpdateProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<UpdateState>({
-    status: "idle",
+    status: 'idle',
     updateInfo: null,
     downloadProgress: null,
     error: null,
@@ -26,7 +19,7 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
   const checkUpdate = useCallback(async (showToast = false) => {
     setState((prev) => ({
       ...prev,
-      status: "checking",
+      status: 'checking',
       error: null,
     }));
 
@@ -35,7 +28,7 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
       if (info) {
         setState((prev) => ({
           ...prev,
-          status: "available",
+          status: 'available',
           updateInfo: info,
           showNotification: true,
         }));
@@ -45,18 +38,18 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
       } else {
         setState((prev) => ({
           ...prev,
-          status: "idle",
+          status: 'idle',
         }));
         if (showToast) {
           // Already up to date notification would go here
         }
       }
     } catch (err) {
-      console.error("Failed to check for update:", err);
-      const errorMsg = err instanceof Error ? err.message : "Failed to check for update";
+      console.error('Failed to check for update:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Failed to check for update';
       setState((prev) => ({
         ...prev,
-        status: "error",
+        status: 'error',
         error: errorMsg,
       }));
     }
@@ -65,7 +58,7 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
   const downloadUpdate = useCallback(async () => {
     setState((prev) => ({
       ...prev,
-      status: "downloading",
+      status: 'downloading',
       downloadProgress: null,
     }));
 
@@ -78,20 +71,20 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
       });
       setState((prev) => ({
         ...prev,
-        status: "ready",
+        status: 'ready',
         showNotification: true,
       }));
     } catch (err) {
-      console.error("Failed to download update:", err);
-      let errorMsg = "Failed to download update";
+      console.error('Failed to download update:', err);
+      let errorMsg = 'Failed to download update';
       if (err instanceof Error) {
         errorMsg = err.message;
-      } else if (typeof err === "string") {
+      } else if (typeof err === 'string') {
         errorMsg = err;
       }
       setState((prev) => ({
         ...prev,
-        status: "error",
+        status: 'error',
         error: errorMsg,
       }));
     }

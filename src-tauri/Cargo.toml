@@ -8,14 +8,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lints.rust]
-unsafe_code = "warn"
-unused = "warn"
+unsafe_code = "allow"
 
 [lints.clippy]
-# 嚴格規則（priority -1 讓個別規則可以覆蓋）
-all = { level = "warn", priority = -1 }
-pedantic = { level = "warn", priority = -1 }
-nursery = { level = "warn", priority = -1 }
+# 嚴格規則
+all = "warn"
+pedantic = "warn"
+nursery = "warn"
 # 放寬一些過於嚴格的規則
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"

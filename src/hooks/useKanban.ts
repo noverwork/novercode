@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-import { useCallback,useEffect, useState } from "react";
+import { invoke } from '@tauri-apps/api/core';
+import { useCallback, useEffect, useState } from 'react';
 
 export interface Project {
   id: string;
@@ -26,8 +26,8 @@ export function useKanban() {
     const load = async () => {
       try {
         const [loadedProjects, loadedTasks] = await Promise.all([
-          invoke<Project[]>("get_projects"),
-          invoke<Task[]>("get_tasks"),
+          invoke<Project[]>('get_projects'),
+          invoke<Task[]>('get_tasks'),
         ]);
         setProjects(loadedProjects);
         setTasks(loadedTasks);
@@ -35,7 +35,7 @@ export function useKanban() {
           setCurrentProjectId(loadedProjects[0].id);
         }
       } catch (e) {
-        console.error("Failed to load data:", e);
+        console.error('Failed to load data:', e);
       }
       setIsLoaded(true);
     };
@@ -43,47 +43,59 @@ export function useKanban() {
   }, []);
 
   // Project operations
-  const addProject = useCallback(async (name: string, path?: string, baseBranch?: string): Promise<string> => {
-    const project = await invoke<Project>("add_project", { name, path, baseBranch });
-    setProjects((prev) => [...prev, project]);
-    setCurrentProjectId(project.id);
-    return project.id;
-  }, []);
+  const addProject = useCallback(
+    async (name: string, path?: string, baseBranch?: string): Promise<string> => {
+      const project = await invoke<Project>('add_project', { name, path, baseBranch });
+      setProjects((prev) => [...prev, project]);
+      setCurrentProjectId(project.id);
+      return project.id;
+    },
+    []
+  );
 
-  const deleteProject = useCallback(async (id: string) => {
-    await invoke("delete_project", { id });
-    setProjects((prev) => {
-      const remaining = prev.filter((p) => p.id !== id);
-      // 如果刪除的是當前選中的 project，選擇下一個
-      if (currentProjectId === id) {
-        setCurrentProjectId(remaining.length > 0 ? remaining[0].id : null);
-      }
-      return remaining;
-    });
-    setTasks((prev) => prev.filter((t) => t.projectId !== id));
-  }, [currentProjectId]);
+  const deleteProject = useCallback(
+    async (id: string) => {
+      await invoke('delete_project', { id });
+      setProjects((prev) => {
+        const remaining = prev.filter((p) => p.id !== id);
+        // 如果刪除的是當前選中的 project，選擇下一個
+        if (currentProjectId === id) {
+          setCurrentProjectId(remaining.length > 0 ? remaining[0].id : null);
+        }
+        return remaining;
+      });
+      setTasks((prev) => prev.filter((t) => t.projectId !== id));
+    },
+    [currentProjectId]
+  );
 
   // Task operations
-  const addTask = useCallback(async (title: string, description: string): Promise<string> => {
-    if (!currentProjectId) throw new Error("No project selected");
-    const task = await invoke<Task>("add_task", {
-      projectId: currentProjectId,
-      title,
-      description,
-    });
-    setTasks((prev) => [...prev, task]);
-    return task.id;
-  }, [currentProjectId]);
+  const addTask = useCallback(
+    async (title: string, description: string): Promise<string> => {
+      if (!currentProjectId) throw new Error('No project selected');
+      const task = await invoke<Task>('add_task', {
+        projectId: currentProjectId,
+        title,
+        description,
+      });
+      setTasks((prev) => [...prev, task]);
+      return task.id;
+    },
+    [currentProjectId]
+  );
 
   const deleteTask = useCallback(async (id: string) => {
-    await invoke("delete_task", { id });
+    await invoke('delete_task', { id });
     setTasks((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   // 取得某 project 的所有 tasks
-  const getTasksByProject = useCallback((projectId: string) => {
-    return tasks.filter((t) => t.projectId === projectId);
-  }, [tasks]);
+  const getTasksByProject = useCallback(
+    (projectId: string) => {
+      return tasks.filter((t) => t.projectId === projectId);
+    },
+    [tasks]
+  );
 
   // 當前 project 的 tasks
   const currentTasks = tasks.filter((t) => t.projectId === currentProjectId);
