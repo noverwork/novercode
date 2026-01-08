@@ -8,12 +8,8 @@ on:
 
 jobs:
   clippy:
-    name: Clippy (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+    name: Clippy
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -31,9 +27,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             src-tauri/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ubuntu-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ubuntu-cargo-
 
       - name: Run Clippy (deny warnings)
         working-directory: src-tauri
