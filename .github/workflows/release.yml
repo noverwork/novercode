@@ -48,6 +48,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Set version from git tag
+        run: npm run set-version
+
       - name: Import Apple Developer Certificate
         if: matrix.platform == 'macos-latest'
         env:
