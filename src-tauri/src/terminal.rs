@@ -9,8 +9,17 @@ use parking_lot::Mutex;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::{Mutex as StdMutex, MutexGuard as StdMutexGuard, PoisonError};
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, State};
+use tracing::{info, error, warn};
+
+use crate::store::StoreState;
+
+// 處理 std::sync::Mutex poison
+fn lock_or_recover_std<T>(mutex: &StdMutex<T>) -> StdMutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
 
 /// A cell in the terminal grid
 #[derive(Clone, Serialize)]
@@ -239,6 +248,7 @@ fn extract_grid(term: &Term<TauriEventListener>, id: &str) -> TerminalGrid {
 #[tauri::command]
 pub async fn terminal_create(
     app_handle: AppHandle,
+    state: State<'_, StoreState>,
     id: String,
     cols: u16,
     rows: u16,
@@ -253,6 +263,56 @@ pub async fn terminal_create(
             return Ok(());
         }
     }
+
+    // === Get claude path from settings ===
+    let settings = lock_or_recover_std(&state.settings);
+    let settings_claude_path = settings.claude_path.clone();
+    drop(settings);
+
+    // Resolve claude path:
+    // 1. Use settings if configured
+    // 2. Try `which claude`
+    // 3. Fall back to "claude" (may fail in production)
+    let claude_path = if let Some(path) = settings_claude_path {
+        // Verify the path exists
+        if std::path::Path::new(&path).exists() {
+            info!(id = %id, claude_path = %path, "Using claude from settings");
+            Some(path)
+        } else {
+            warn!(id = %id, path = %path, "Claude path in settings doesn't exist, falling back");
+            None
+        }
+    } else {
+        None
+    };
+
+    let claude_path = claude_path.or_else(|| {
+        // Try which claude
+        let which_result = std::process::Command::new("which")
+            .arg("claude")
+            .output();
+        match which_result {
+            Ok(output) if output.status.success() => {
+                let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                info!(id = %id, claude_path = %path, "Found claude via which");
+                Some(path)
+            }
+            Ok(_) => {
+                warn!(id = %id, "which claude failed - command not found");
+                None
+            }
+            Err(e) => {
+                error!(id = %id, error = %e, "which command failed");
+                None
+            }
+        }
+    });
+
+    let claude_cmd = claude_path.as_deref().unwrap_or("claude");
+    // ====================================
+
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    info!(id = %id, shell = %shell, claude_cmd = %claude_cmd, "Creating terminal");
 
     let window_size = WindowSize {
         num_cols: cols,
@@ -272,13 +332,12 @@ pub async fn terminal_create(
     let term = Term::new(term_config, &term_size, event_listener);
     let term = Arc::new(FairMutex::new(term));
 
-    // PTY options
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    // PTY options - use the resolved claude command
     #[cfg(target_os = "windows")]
     let pty_config = PtyOptions {
         shell: Some(tty::Shell::new(
             shell,
-            vec!["-l".into(), "-c".into(), "claude".into()],
+            vec!["-l".into(), "-c".into(), claude_cmd.into()],
         )),
         working_directory: cwd.map(PathBuf::from),
         env: std::collections::HashMap::new(),
@@ -289,7 +348,7 @@ pub async fn terminal_create(
     let pty_config = PtyOptions {
         shell: Some(tty::Shell::new(
             shell,
-            vec!["-l".into(), "-c".into(), "claude".into()],
+            vec!["-l".into(), "-c".into(), claude_cmd.into()],
         )),
         working_directory: cwd.map(PathBuf::from),
         env: std::collections::HashMap::new(),
@@ -298,7 +357,10 @@ pub async fn terminal_create(
 
     // Create PTY
     let pty = tty::new(&pty_config, window_size, 0)
-        .map_err(|e| format!("Failed to create PTY: {e}"))?;
+        .map_err(|e| {
+            error!(id = %id, error = %e, "PTY creation failed");
+            format!("PTY creation failed: {e}")
+        })?;
 
     // Event listener for event loop
     let event_listener = TauriEventListener {

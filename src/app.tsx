@@ -1,4 +1,4 @@
-import { Board } from "@/components/kanban/Board";
+import { Board } from "@/components/kanban/board";
 import { UpdateProvider } from "@/stores/update";
 
 function App() {

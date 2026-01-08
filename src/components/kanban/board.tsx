@@ -2,15 +2,15 @@ import { invoke } from "@tauri-apps/api/core";
 import { ChevronLeft, ChevronRight, Folder, GitCompare,Loader2, Terminal, Trash2 } from "lucide-react";
 import { useEffect, useMemo,useState } from "react";
 
-import { SettingsSheet } from "@/components/SettingsSheet";
+import { SettingsSheet } from "@/components/settings-sheet";
 import { Button } from "@/components/ui/button";
 import { useKanban } from "@/hooks/useKanban";
 
-import { AddProjectDialog } from "./AddProjectDialog";
-import { AddTaskDialog } from "./AddTaskDialog";
-import { CanvasTerminal } from "./CanvasTerminal";
-import { DiffView } from "./DiffView";
-import { TaskCard } from "./TaskCard";
+import { AddProjectDialog } from "./add-project-dialog";
+import { AddTaskDialog } from "./add-task-dialog";
+import { CanvasTerminal } from "./canvas-terminal";
+import { DiffView } from "./diff-view";
+import { TaskCard } from "./task-card";
 
 type WorktreeState =
   | { status: "idle" }

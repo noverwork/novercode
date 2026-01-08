@@ -1,7 +1,10 @@
-import { Download, RefreshCw, RotateCcw,Settings } from "lucide-react";
-import { useState } from "react";
+import { Download, RefreshCw, RotateCcw, Settings, Terminal } from "lucide-react";
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -11,8 +14,16 @@ import {
 } from "@/components/ui/sheet";
 import { useUpdate } from "@/hooks/useUpdate";
 
+interface Settings {
+  claudePath?: string | null;
+}
+
 export function SettingsSheet() {
   const [open, setOpen] = useState(false);
+  const [settings, setSettings] = useState<Settings>({});
+  const [claudePathInput, setClaudePathInput] = useState("");
+  const [saving, setSaving] = useState(false);
+
   const {
     status,
     updateInfo,
@@ -21,6 +32,32 @@ export function SettingsSheet() {
     downloadUpdate,
     restart,
   } = useUpdate();
+
+  // Load settings on mount and when sheet opens
+  useEffect(() => {
+    if (open) {
+      invoke<Settings>("get_settings")
+        .then((s) => {
+          setSettings(s);
+          setClaudePathInput(s.claudePath || "");
+        })
+        .catch(console.error);
+    }
+  }, [open]);
+
+  const saveClaudePath = async () => {
+    setSaving(true);
+    try {
+      const updated = await invoke<Settings>("update_settings", {
+        claudePath: claudePathInput || null,
+      });
+      setSettings(updated);
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const formatBytes = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -142,6 +179,41 @@ export function SettingsSheet() {
                 >
                   <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
                   Checking...
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Claude Section */}
+          <div className="space-y-3">
+            <h3 className="text-xs text-green-700 font-mono uppercase tracking-wider">
+              <Terminal className="h-3 w-3 inline mr-1" />
+              Claude
+            </h3>
+            <div className="p-3 rounded border border-green-900 bg-green-950/20 space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="claude-path" className="text-xs font-mono text-green-600">
+                  Claude Executable Path
+                </Label>
+                <Input
+                  id="claude-path"
+                  value={claudePathInput}
+                  onChange={(e) => setClaudePathInput(e.target.value)}
+                  placeholder="/Users/xxx/.asdf/installs/nodejs/.../bin/claude"
+                  className="font-mono text-xs bg-black border-green-900 text-green-400 placeholder:text-green-900"
+                />
+                <p className="text-xs font-mono text-green-800">
+                  Leave empty to use PATH. Required for production builds.
+                </p>
+              </div>
+              {(claudePathInput !== (settings.claudePath || "")) && (
+                <Button
+                  size="sm"
+                  className="w-full bg-green-900/50 hover:bg-green-800/50 text-green-400 border border-green-700"
+                  onClick={saveClaudePath}
+                  disabled={saving}
+                >
+                  {saving ? "Saving..." : "Save Path"}
                 </Button>
               )}
             </div>

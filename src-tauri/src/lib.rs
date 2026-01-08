@@ -97,6 +97,23 @@ fn open_folder(path: String) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Initialize file logging to ~/Library/Logs/com.noverwork.novercode/
+    let log_dir = dirs::home_dir()
+        .map(|h| h.join("Library/Logs/com.noverwork.novercode"))
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    std::fs::create_dir_all(&log_dir).ok();
+
+    let _log_file = log_dir.join("novercode.log");
+    let file_appender = tracing_appender::rolling::never(log_dir, "novercode.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
+    tracing_subscriber::fmt()
+        .with_writer(non_blocking)
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
+
+    tracing::info!("Novercode starting...");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -119,6 +136,8 @@ pub fn run() {
             store::get_tasks_by_project,
             store::add_task,
             store::delete_task,
+            store::get_settings,
+            store::update_settings,
             worktree::create_worktree,
             worktree::remove_worktree,
             worktree::get_task_working_dir,

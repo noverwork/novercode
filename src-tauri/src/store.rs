@@ -11,6 +11,19 @@ fn lock_or_recover<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 const STORE_FILE: &str = "data.json";
 const PROJECTS_KEY: &str = "projects";
 const TASKS_KEY: &str = "tasks";
+const SETTINGS_KEY: &str = "settings";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Settings {
+    pub claude_path: Option<String>,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self { claude_path: None }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,6 +47,7 @@ pub struct Task {
 pub struct StoreState {
     pub projects: Mutex<Vec<Project>>,
     pub tasks: Mutex<Vec<Task>>,
+    pub settings: Mutex<Settings>,
 }
 
 // 初始化：從 store 載入資料
@@ -58,6 +72,13 @@ pub fn init_store(app: &AppHandle) -> Result<(), String> {
         }
     }
 
+    // 載入 settings
+    if let Some(settings) = store.get(SETTINGS_KEY) {
+        if let Ok(settings) = serde_json::from_value::<Settings>(settings) {
+            *lock_or_recover(&state.settings) = settings;
+        }
+    }
+
     Ok(())
 }
 
@@ -69,6 +90,7 @@ fn save_to_store(app: &AppHandle, state: &State<StoreState>) -> Result<(), Strin
 
     let projects = lock_or_recover(&state.projects).clone();
     let tasks = lock_or_recover(&state.tasks).clone();
+    let settings = lock_or_recover(&state.settings).clone();
 
     store.set(
         PROJECTS_KEY,
@@ -77,6 +99,10 @@ fn save_to_store(app: &AppHandle, state: &State<StoreState>) -> Result<(), Strin
     store.set(
         TASKS_KEY,
         serde_json::to_value(&tasks).map_err(|e| e.to_string())?,
+    );
+    store.set(
+        SETTINGS_KEY,
+        serde_json::to_value(&settings).map_err(|e| e.to_string())?,
     );
     store.save().map_err(|e| format!("Failed to save: {e}"))?;
 
@@ -169,4 +195,25 @@ pub fn delete_task(
     lock_or_recover(&state.tasks).retain(|t| t.id != id);
     save_to_store(&app, &state)?;
     Ok(())
+}
+
+// === Settings Commands ===
+
+#[tauri::command]
+pub fn get_settings(state: State<StoreState>) -> Settings {
+    lock_or_recover(&state.settings).clone()
+}
+
+#[tauri::command]
+pub fn update_settings(
+    app: AppHandle,
+    state: State<StoreState>,
+    claude_path: Option<String>,
+) -> Result<Settings, String> {
+    let mut settings = lock_or_recover(&state.settings);
+    settings.claude_path = claude_path;
+    let updated = settings.clone();
+    drop(settings); // release lock before save
+    save_to_store(&app, &state)?;
+    Ok(updated)
 }
