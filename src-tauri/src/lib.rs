@@ -98,9 +98,10 @@ fn open_folder(path: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize file logging to ~/Library/Logs/com.noverwork.novercode/
-    let log_dir = dirs::home_dir()
-        .map(|h| h.join("Library/Logs/com.noverwork.novercode"))
-        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let log_dir = dirs::home_dir().map_or_else(
+        || std::path::PathBuf::from("."),
+        |h| h.join("Library/Logs/com.noverwork.novercode"),
+    );
     std::fs::create_dir_all(&log_dir).ok();
 
     let _log_file = log_dir.join("novercode.log");

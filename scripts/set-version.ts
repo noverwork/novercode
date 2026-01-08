@@ -34,10 +34,18 @@ try {
 const tauriConfigPath = join(__dirname, "../src-tauri/tauri.conf.json");
 const config = JSON.parse(readFileSync(tauriConfigPath, "utf-8"));
 
+// Update Cargo.toml
+const cargoTomlPath = join(__dirname, "../src-tauri/Cargo.toml");
+let cargoToml = readFileSync(cargoTomlPath, "utf-8");
+
 if (config.version !== version) {
   config.version = version;
   writeFileSync(tauriConfigPath, JSON.stringify(config, null, 2) + "\n");
-  console.log(`Updated version to ${version}`);
+  console.log(`Updated tauri.conf.json version to ${version}`);
+  
+  cargoToml = cargoToml.replace(/^version = ".*"/m, `version = "${version}"`);
+  writeFileSync(cargoTomlPath, cargoToml);
+  console.log(`Updated Cargo.toml version to ${version}`);
 } else {
   console.log(`Version already ${version}`);
 }

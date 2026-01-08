@@ -273,8 +273,7 @@ pub async fn terminal_create(
     // 1. Use settings if configured
     // 2. Try `which claude`
     // 3. Fall back to "claude" (may fail in production)
-    let claude_path = if let Some(path) = settings_claude_path {
-        // Verify the path exists
+    let claude_path = settings_claude_path.and_then(|path| {
         if std::path::Path::new(&path).exists() {
             info!(id = %id, claude_path = %path, "Using claude from settings");
             Some(path)
@@ -282,9 +281,7 @@ pub async fn terminal_create(
             warn!(id = %id, path = %path, "Claude path in settings doesn't exist, falling back");
             None
         }
-    } else {
-        None
-    };
+    });
 
     let claude_path = claude_path.or_else(|| {
         // Try which claude

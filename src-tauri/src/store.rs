@@ -13,16 +13,11 @@ const PROJECTS_KEY: &str = "projects";
 const TASKS_KEY: &str = "tasks";
 const SETTINGS_KEY: &str = "settings";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
+    #[serde(default)]
     pub claude_path: Option<String>,
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self { claude_path: None }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
