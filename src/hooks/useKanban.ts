@@ -20,6 +20,7 @@ export function useKanban() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [recentTaskIds, setRecentTaskIds] = useState<Set<string>>(() => new Set());
 
   // 載入資料
   useEffect(() => {
@@ -41,6 +42,26 @@ export function useKanban() {
     };
     load();
   }, []);
+
+  const trackRecentTask = useCallback((taskId: string) => {
+    setRecentTaskIds((prev) => {
+      const updated = new Set(prev);
+      updated.delete(taskId);
+      updated.add(taskId);
+      if (updated.size > 9) {
+        const oldest = Array.from(updated).shift();
+        if (oldest) updated.delete(oldest);
+      }
+      return updated;
+    });
+  }, []);
+
+  const getRecentTasks = useCallback(() => {
+    const recent = Array.from(recentTaskIds);
+    return recent
+      .map((id) => tasks.find((t) => t.id === id))
+      .filter((t): t is Task => t !== undefined && t.projectId === currentProjectId);
+  }, [recentTaskIds, tasks, currentProjectId]);
 
   // Project operations
   const addProject = useCallback(
@@ -79,14 +100,20 @@ export function useKanban() {
         description,
       });
       setTasks((prev) => [...prev, task]);
+      trackRecentTask(task.id);
       return task.id;
     },
-    [currentProjectId]
+    [currentProjectId, trackRecentTask]
   );
 
   const deleteTask = useCallback(async (id: string) => {
     await invoke('delete_task', { id });
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    setRecentTaskIds((prev) => {
+      const updated = new Set(prev);
+      updated.delete(id);
+      return updated;
+    });
   }, []);
 
   // 取得某 project 的所有 tasks
@@ -112,8 +139,11 @@ export function useKanban() {
     getTasksByProject,
     // Tasks
     tasks: currentTasks,
+    allTasks: tasks,
     addTask,
     deleteTask,
+    getRecentTasks,
+    trackRecentTask,
     // State
     isLoaded,
   };

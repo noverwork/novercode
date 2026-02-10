@@ -1,11 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ActivityBar } from '@/components/activity-bar';
 import { Breadcrumbs } from '@/components/breadcrumbs';
-import { CommandPalette } from '@/components/command-palette';
 import { CanvasTerminal } from '@/components/kanban/canvas-terminal';
 import { DiffView } from '@/components/kanban/diff-view';
+import { QuickSwitcher } from '@/components/quick-switcher';
 import { useKanban } from '@/hooks/useKanban';
 
 type WorktreeState =
@@ -29,12 +29,17 @@ export function Board() {
     setCurrentProjectId,
     deleteProject,
     getTasksByProject,
-    tasks,
+    tasks: currentTasks,
+    allTasks,
     deleteTask,
+    getRecentTasks,
+    trackRecentTask,
   } = useKanban();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [worktree, setWorktree] = useState<WorktreeState>({ status: 'idle' });
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
+  const [quickSwitcherMode, setQuickSwitcherMode] = useState<'projects' | 'tasks'>('projects');
+  const [focusedPanel, setFocusedPanel] = useState<'terminal' | 'diff'>('terminal');
 
   const workingDir = useMemo(() => {
     if (worktree.status === 'ready' && worktree.taskId === selectedTaskId) {
@@ -48,7 +53,11 @@ export function Board() {
     return worktree.status === 'ready' && worktree.taskId === selectedTaskId;
   }, [worktree, selectedTaskId]);
 
-  const selectedTask = tasks.find((t) => t.id === selectedTaskId) || null;
+  const selectedTask = useMemo(
+    () => allTasks.find((t) => t.id === selectedTaskId) || null,
+    [allTasks, selectedTaskId]
+  );
+  const recentTasks = useMemo(() => getRecentTasks(), [getRecentTasks]);
 
   /* eslint-disable react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect */
   useEffect(() => {
@@ -91,27 +100,8 @@ export function Board() {
     return () => {
       cancelled = true;
     };
-  }, [selectedTaskId, currentProject?.path, currentProject?.name, currentProject?.baseBranch]);
+  }, [selectedTaskId, recentTasks, currentProject, projects]);
   /* eslint-enable react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect */
-
-  const handleDeleteTask = async (id: string) => {
-    await killTerminal(id);
-    if (selectedTaskId === id) {
-      setSelectedTaskId(null);
-    }
-    if (currentProject) {
-      try {
-        await invoke('remove_worktree', {
-          taskId: id,
-          projectName: currentProject.name,
-          projectPath: currentProject.path,
-        });
-      } catch (e) {
-        console.error('Failed to remove worktree:', e);
-      }
-    }
-    await deleteTask(id);
-  };
 
   const handleDeleteProject = async (projectId: string) => {
     const projectTasks = getTasksByProject(projectId);
@@ -141,17 +131,68 @@ export function Board() {
     await deleteProject(projectId);
   };
 
+  const handleSelectTask = useCallback(
+    (id: string) => {
+      setSelectedTaskId(id);
+      trackRecentTask(id);
+    },
+    [trackRecentTask]
+  );
+
+  const handleQuickSwitchProjects = () => {
+    setQuickSwitcherOpen(true);
+    setQuickSwitcherMode('projects');
+  };
+
+  const handleQuickSwitchTasks = () => {
+    setQuickSwitcherOpen(true);
+    setQuickSwitcherMode('tasks');
+  };
+
+  const handleRecentTask = useCallback(
+    (index: number) => {
+      const tasksList = recentTasks;
+      if (index < tasksList.length && tasksList[index]) {
+        handleSelectTask(tasksList[index].id);
+      }
+    },
+    [recentTasks, handleSelectTask]
+  );
+
+  const handleTogglePanel = () => {
+    setFocusedPanel((prev) => (prev === 'terminal' ? 'diff' : 'terminal'));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedTaskId(null);
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'P') {
         e.preventDefault();
-        setCommandPaletteOpen(true);
+        handleQuickSwitchProjects();
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+        e.preventDefault();
+        handleQuickSwitchProjects();
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'T') {
+        e.preventDefault();
+        handleQuickSwitchTasks();
+      } else if (e.key >= '1' && e.key <= '9') {
+        e.preventDefault();
+        handleRecentTask(parseInt(e.key) - 1);
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        handleTogglePanel();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClearSelection();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [selectedTaskId, recentTasks, currentProject, projects, handleRecentTask]);
 
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a]">
@@ -172,10 +213,10 @@ export function Board() {
             currentProject={currentProject}
             selectedTask={selectedTask}
             projects={projects}
-            tasks={tasks}
+            tasks={currentTasks}
             currentProjectId={currentProjectId}
             onProjectSelect={setCurrentProjectId}
-            onTaskSelect={setSelectedTaskId}
+            onTaskSelect={handleSelectTask}
           />
         )}
       </header>
@@ -183,24 +224,26 @@ export function Board() {
       <div className="flex-1 flex overflow-hidden relative">
         <ActivityBar
           projects={projects}
-          tasks={tasks}
+          tasks={allTasks}
           currentProjectId={currentProjectId}
           currentProject={currentProject}
           selectedTaskId={selectedTaskId}
           onProjectSelect={setCurrentProjectId}
-          onTaskSelect={setSelectedTaskId}
+          onTaskSelect={handleSelectTask}
           onDeleteProject={handleDeleteProject}
-          onDeleteTask={handleDeleteTask}
+          onDeleteTask={deleteTask}
         />
 
         <div className="flex-1 flex">
           {selectedTaskId && isWorktreeReady ? (
             <div className="flex-1 flex overflow-hidden">
               <div className="w-[60%] flex flex-col border-r border-[rgba(255,255,255,0.15)]">
-                <CanvasTerminal taskId={selectedTaskId} workingDir={workingDir || undefined} />
+                {focusedPanel === 'terminal' && (
+                  <CanvasTerminal taskId={selectedTaskId} workingDir={workingDir || undefined} />
+                )}
               </div>
               <div className="w-[40%] flex flex-col">
-                <DiffView workingDir={workingDir || undefined} />
+                {focusedPanel === 'diff' && <DiffView workingDir={workingDir || undefined} />}
               </div>
             </div>
           ) : selectedTaskId && !isWorktreeReady ? (
@@ -218,27 +261,39 @@ export function Board() {
 
       <footer className="border-t border-[rgba(255,255,255,0.15)] px-4 py-2 flex items-center justify-between">
         <span className="text-xs text-[rgba(255,255,255,0.5)] font-mono">
-          [ONLINE] | projects: {projects.length} | tasks: {tasks.length} | ready
+          [ONLINE] | projects: {projects.length} | tasks: {currentTasks.length} | ready
         </span>
         <span className="text-xs text-[rgba(255,255,255,0.5)] flex items-center gap-2">
           <span
-            className="w-2 h-2 bg-[#00FF00] rounded-full animate-pulse"
+            className="w-2 h-2 bg-[#00FF00] rounded-full"
             style={{ boxShadow: '0 0 10px rgba(0,255,0,0.5)' }}
           />
           <span>$</span>
           <span className="cursor-blink">█</span>
+          {recentTasks.length > 0 && (
+            <>
+              <span className="text-[rgba(255,255,255,0.3)]">|</span>
+              <span className="text-[rgba(255,255,255,0.5)]">recent: {recentTasks.length}</span>
+            </>
+          )}
+        </span>
+        <span className="text-xs text-[rgba(255,255,255,0.5)]">
+          <span className="hidden sm:inline">1-9 quick switch | </span>
+          <span className="hidden sm:inline">Tab: panels | </span>
+          <span>Esc: clear</span>
         </span>
       </footer>
 
-      <CommandPalette
-        open={commandPaletteOpen}
-        onOpenChange={setCommandPaletteOpen}
+      <QuickSwitcher
+        open={quickSwitcherOpen}
+        onOpenChange={setQuickSwitcherOpen}
+        mode={quickSwitcherMode}
         projects={projects}
-        tasks={tasks}
+        tasks={recentTasks}
         currentProjectId={currentProjectId}
         selectedTaskId={selectedTaskId}
         onProjectSelect={setCurrentProjectId}
-        onTaskSelect={setSelectedTaskId}
+        onTaskSelect={handleSelectTask}
       />
     </div>
   );
