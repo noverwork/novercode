@@ -44,22 +44,19 @@ export function AddTaskDialog({ open: controlledOpen, onOpenChange, onAdd }: Add
   return (
     <Dialog open={open} onOpenChange={(v) => !isLoading && setOpen(v)}>
       <DialogTrigger asChild>
-        <Button
-          size="sm"
-          className="font-mono text-sm border border-green-700 text-green-500 hover:bg-green-900/30 hover:text-green-400 bg-green-950/20"
-        >
+        <Button size="sm" className="font-mono text-xs uppercase tracking-[0.15em]">
           <Plus className="h-4 w-4 mr-1" />
           [add task]
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-black border border-green-900 text-green-500 font-mono">
+      <DialogContent className="bg-[#0a0a0a] border border-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.8)] font-mono">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-green-500">{'// new_task'}</DialogTitle>
+            <DialogTitle className="text-[#FFFFFF] font-black uppercase">New Task</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <div className="space-y-2">
-              <Label htmlFor="title" className="text-green-700 text-xs">
+              <Label htmlFor="title" className="text-[rgba(255,255,255,0.6)] text-xs">
                 $ title =
               </Label>
               <Input
@@ -69,7 +66,6 @@ export function AddTaskDialog({ open: controlledOpen, onOpenChange, onAdd }: Add
                 placeholder="enter task title..."
                 autoFocus
                 disabled={isLoading}
-                className="bg-black border border-green-900 text-green-500 placeholder:text-green-900 focus:border-green-500 font-mono disabled:opacity-50"
               />
             </div>
           </div>
@@ -79,14 +75,14 @@ export function AddTaskDialog({ open: controlledOpen, onOpenChange, onAdd }: Add
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={isLoading}
-              className="font-mono text-sm border border-green-900 text-green-700 hover:bg-green-900/20 hover:text-green-600 bg-transparent disabled:opacity-50"
+              className="font-mono text-xs uppercase tracking-[0.15em]"
             >
               [cancel]
             </Button>
             <Button
               type="submit"
               disabled={!title.trim() || isLoading}
-              className="font-mono text-sm border border-green-700 text-green-500 hover:bg-green-900/30 hover:text-green-400 bg-green-950/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="font-mono text-xs uppercase tracking-[0.15em]"
             >
               {isLoading ? (
                 <>

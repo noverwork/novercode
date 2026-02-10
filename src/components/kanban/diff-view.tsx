@@ -62,9 +62,20 @@ function getFileLanguage(path: string): string {
 
 function getStatusIcon(status: string) {
   if (status.includes('A') || status === '??')
-    return <FilePlus className="h-3 w-3 text-green-500" />;
-  if (status.includes('D')) return <FileX className="h-3 w-3 text-red-500" />;
-  return <FileCode className="h-3 w-3 text-yellow-500" />;
+    return (
+      <FilePlus
+        className="h-3 w-3 text-[#00FF00]"
+        style={{ textShadow: '0 0 10px rgba(0,255,0,0.5)' }}
+      />
+    );
+  if (status.includes('D'))
+    return (
+      <FileX
+        className="h-3 w-3 text-[#FF0000]"
+        style={{ textShadow: '0 0 10px rgba(255,0,0,0.5)' }}
+      />
+    );
+  return <FileCode className="h-3 w-3 text-[rgba(255,255,255,0.7)]" />;
 }
 
 function buildTree(files: ChangedFile[]): TreeNode[] {
@@ -129,7 +140,7 @@ function TreeItem({
       <div>
         <button
           onClick={() => onToggleFolder(node.path)}
-          className="w-full flex items-center gap-1 px-2 py-1 rounded font-mono text-xs text-left text-green-600 hover:bg-green-900/20"
+          className="w-full flex items-center gap-1 px-2 py-1 rounded font-mono text-xs text-left text-[rgba(255,255,255,0.5)] hover:bg-[rgba(255,255,255,0.05)]"
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
         >
           {isExpanded ? (
@@ -164,8 +175,8 @@ function TreeItem({
       onClick={() => onSelect(node.path)}
       className={`w-full flex items-center gap-1.5 px-2 py-1 rounded font-mono text-xs text-left transition-colors ${
         selectedFile === node.path
-          ? 'bg-green-900/40 text-green-400'
-          : 'text-green-700 hover:bg-green-900/20 hover:text-green-500'
+          ? 'bg-[rgba(255,255,255,0.1)] text-[#FFFFFF]'
+          : 'text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#FFFFFF]'
       }`}
       style={{ paddingLeft: `${depth * 12 + 8}px` }}
     >
@@ -265,15 +276,17 @@ export function DiffView({ workingDir }: DiffViewProps) {
   return (
     <div className="h-full flex bg-[#0a0a0a]">
       {/* File List */}
-      <div className="w-56 border-r border-green-900/50 flex flex-col">
-        <div className="h-9 px-3 border-b border-green-900/50 flex items-center justify-between">
-          <span className="text-xs text-green-700 font-mono">changed files</span>
+      <div className="w-56 border-r border-[rgba(255,255,255,0.15)] flex flex-col">
+        <div className="h-9 px-3 border-b border-[rgba(255,255,255,0.15)] flex items-center justify-between">
+          <span className="text-xs text-[rgba(255,255,255,0.6)] font-[Helvetica_Neue,Arial,sans-serif] uppercase tracking-[0.2em]">
+            changed files
+          </span>
           <Button
             variant="ghost"
             size="icon"
             onClick={fetchFiles}
             disabled={isLoading}
-            className="text-green-800 hover:text-green-500 hover:bg-green-900/20 h-6 w-6"
+            className="text-[rgba(255,255,255,0.4)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)] h-6 w-6"
           >
             {isLoading ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -285,7 +298,9 @@ export function DiffView({ workingDir }: DiffViewProps) {
         <ScrollArea className="flex-1">
           <div className="py-1">
             {files.length === 0 ? (
-              <div className="text-center py-8 text-green-900 font-mono text-xs">no changes</div>
+              <div className="text-center py-8 text-[rgba(255,255,255,0.3)] font-mono text-xs">
+                no changes
+              </div>
             ) : (
               buildTree(files).map((node) => (
                 <TreeItem
@@ -305,14 +320,16 @@ export function DiffView({ workingDir }: DiffViewProps) {
       {/* Diff Editor */}
       <div className="flex-1 flex flex-col">
         {selectedFile && (
-          <div className="h-9 px-3 border-b border-green-900/50 flex items-center">
-            <span className="text-xs text-green-600 font-mono truncate">{selectedFile}</span>
+          <div className="h-9 px-3 border-b border-[rgba(255,255,255,0.15)] flex items-center">
+            <span className="text-xs text-[rgba(255,255,255,0.5)] font-mono truncate">
+              {selectedFile}
+            </span>
           </div>
         )}
         <div className="flex-1">
           {isLoadingDiff ? (
             <div className="h-full flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-green-600" />
+              <Loader2 className="h-6 w-6 animate-spin text-[rgba(255,255,255,0.5)]" />
             </div>
           ) : fileDiff ? (
             <DiffEditor
@@ -332,7 +349,7 @@ export function DiffView({ workingDir }: DiffViewProps) {
               }}
             />
           ) : (
-            <div className="h-full flex items-center justify-center text-green-800 font-mono text-sm">
+            <div className="h-full flex items-center justify-center text-[rgba(255,255,255,0.3)] font-mono text-sm">
               {files.length === 0 ? 'no changes to display' : 'select a file'}
             </div>
           )}

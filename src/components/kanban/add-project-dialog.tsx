@@ -70,19 +70,19 @@ export function AddProjectDialog({
         <Button
           size="sm"
           variant="ghost"
-          className="font-mono text-xs text-green-700 hover:text-green-500 hover:bg-green-900/20"
+          className="font-mono text-xs uppercase tracking-[0.15em] text-[rgba(255,255,255,0.6)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)]"
         >
           <FolderPlus className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-black border border-green-900 text-green-500 font-mono">
+      <DialogContent className="bg-[#0a0a0a] border border-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.8)] font-mono">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-green-500">{'// new_project'}</DialogTitle>
+            <DialogTitle className="text-[#FFFFFF] font-black uppercase">New Project</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="path" className="text-green-700 text-xs">
+              <Label htmlFor="path" className="text-[rgba(255,255,255,0.6)] text-xs">
                 $ path =
               </Label>
               <div className="flex gap-2">
@@ -92,14 +92,14 @@ export function AddProjectDialog({
                   onChange={(e) => setPath(e.target.value)}
                   placeholder="/path/to/project or git@..."
                   autoFocus
-                  className="bg-black border border-green-900 text-green-500 placeholder:text-green-900 focus:border-green-500 font-mono flex-1"
+                  className="flex-1"
                 />
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
                   onClick={handleSelectFolder}
-                  className="border-green-900 text-green-700 hover:text-green-500 hover:bg-green-900/20 bg-transparent"
+                  className="text-[rgba(255,255,255,0.6)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)] bg-transparent"
                   title="Select folder"
                 >
                   <FolderOpen className="h-4 w-4" />
@@ -107,13 +107,13 @@ export function AddProjectDialog({
               </div>
             </div>
             {derivedName && (
-              <div className="text-xs text-green-700">
-                <span className="text-green-900">name: </span>
-                <span className="text-green-500">{derivedName}</span>
+              <div className="text-xs text-[rgba(255,255,255,0.6)]">
+                <span className="text-[rgba(255,255,255,0.4)]">name: </span>
+                <span className="text-[rgba(255,255,255,0.8)]">{derivedName}</span>
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="baseBranch" className="text-green-700 text-xs">
+              <Label htmlFor="baseBranch" className="text-[rgba(255,255,255,0.6)] text-xs">
                 $ base_branch =
               </Label>
               <Input
@@ -121,7 +121,6 @@ export function AddProjectDialog({
                 value={baseBranch}
                 onChange={(e) => setBaseBranch(e.target.value)}
                 placeholder="main"
-                className="bg-black border border-green-900 text-green-500 placeholder:text-green-900 focus:border-green-500 font-mono"
               />
             </div>
           </div>
@@ -130,14 +129,14 @@ export function AddProjectDialog({
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              className="font-mono text-sm border border-green-900 text-green-700 hover:bg-green-900/20 hover:text-green-600 bg-transparent"
+              className="font-mono text-xs uppercase tracking-[0.15em]"
             >
               [cancel]
             </Button>
             <Button
               type="submit"
               disabled={!derivedName}
-              className="font-mono text-sm border border-green-700 text-green-500 hover:bg-green-900/30 hover:text-green-400 bg-green-950/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="font-mono text-xs uppercase tracking-[0.15em]"
             >
               [create]
             </Button>

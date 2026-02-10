@@ -416,14 +416,14 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
   return (
     <div className="h-full flex flex-col bg-[#0a0a0a]" style={{ minHeight: '400px' }}>
       {/* Quick Commands */}
-      <div className="border-b border-green-900/50 px-4 py-2 flex items-center gap-2">
+      <div className="border-b border-[rgba(255,255,255,0.15)] px-4 py-2 flex items-center gap-2">
         {quickCommands.map((cmd) => (
           <Button
             key={cmd.label}
             variant="ghost"
             size="sm"
             onClick={() => handleQuickCommand(cmd.command)}
-            className="text-green-700 hover:text-green-400 hover:bg-green-900/30 h-7 px-2 font-mono text-xs"
+            className="text-[rgba(255,255,255,0.6)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)] h-7 px-2 font-mono text-xs uppercase tracking-[0.15em]"
           >
             <cmd.icon className="h-3 w-3 mr-1" />
             {cmd.label}
@@ -446,7 +446,10 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
         {/* Loading overlay */}
         {!isRunning && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]">
-            <div className="text-green-600 font-mono text-sm flex items-center gap-2">
+            <div
+              className="text-[#00FF00] font-mono text-sm flex items-center gap-2"
+              style={{ textShadow: '0 0 10px rgba(0,255,0,0.5)' }}
+            >
               <span className="animate-pulse">●</span>
               <span>initializing claude...</span>
             </div>

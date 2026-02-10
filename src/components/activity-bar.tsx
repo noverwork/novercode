@@ -60,17 +60,17 @@ export function ActivityBar({
   return (
     <>
       <div
-        className="w-[50px] border-r border-green-900 bg-black flex flex-col items-center py-4 gap-1 relative z-20"
+        className="w-[50px] border-r border-[rgba(255,255,255,0.15)] bg-[#0a0a0a] flex flex-col items-center py-4 gap-1 relative z-20"
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => !expanded && setIsHovering(false)}
       >
         <Button
           size="icon"
           variant="ghost"
-          className={`h-9 w-9 rounded-none border-l-2 transition-colors ${
+          className={`h-9 w-9 border-l-2 transition-colors ${
             expanded === 'projects'
-              ? 'border-l-green-500 bg-green-900/30 text-green-400'
-              : 'border-l-transparent text-green-700 hover:text-green-500 hover:bg-green-900/20'
+              ? 'border-l-[#FFFFFF] bg-[rgba(255,255,255,0.1)] text-[#FFFFFF]'
+              : 'border-l-transparent text-[rgba(255,255,255,0.4)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)]'
           }`}
           onClick={() => handleIconClick('projects')}
         >
@@ -80,10 +80,10 @@ export function ActivityBar({
         <Button
           size="icon"
           variant="ghost"
-          className={`h-9 w-9 rounded-none border-l-2 transition-colors ${
+          className={`h-9 w-9 border-l-2 transition-colors ${
             expanded === 'tasks'
-              ? 'border-l-green-500 bg-green-900/30 text-green-400'
-              : 'border-l-transparent text-green-700 hover:text-green-500 hover:bg-green-900/20'
+              ? 'border-l-[#FFFFFF] bg-[rgba(255,255,255,0.1)] text-[#FFFFFF]'
+              : 'border-l-transparent text-[rgba(255,255,255,0.4)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)]'
           }`}
           onClick={() => handleIconClick('tasks')}
         >
@@ -95,7 +95,7 @@ export function ActivityBar({
 
       {(expanded || isHovering) && (
         <div
-          className={`absolute left-[50px] top-0 bottom-0 w-72 bg-black border-r border-green-900 z-10 flex flex-col transition-transform duration-150 ease-out ${
+          className={`absolute left-[50px] top-0 bottom-0 w-72 bg-[#0a0a0a] border-r border-[rgba(255,255,255,0.15)] z-10 flex flex-col transition-transform duration-150 ease-out ${
             expanded ? 'translate-x-0' : '-translate-x-full pointer-events-none'
           }`}
           onMouseEnter={() => setExpanded(expanded || (isHovering ? expanded : null))}
@@ -103,22 +103,24 @@ export function ActivityBar({
         >
           {expanded === 'projects' && (
             <div className="flex-1 flex flex-col">
-              <div className="h-9 px-4 border-b border-green-900 flex items-center">
-                <span className="text-xs text-green-700 font-mono uppercase">Projects</span>
+              <div className="h-9 px-4 border-b border-[rgba(255,255,255,0.15)] flex items-center">
+                <span className="text-xs text-[rgba(255,255,255,0.6)] font-[Helvetica_Neue,Arial,sans-serif] uppercase tracking-[0.2em]">
+                  Projects
+                </span>
               </div>
               <div className="flex-1 overflow-auto p-2 space-y-1">
                 {projects.length === 0 ? (
-                  <div className="text-center py-8 text-green-900 font-mono text-xs">
+                  <div className="text-center py-8 text-[rgba(255,255,255,0.3)] font-mono text-xs">
                     <p>no projects</p>
                   </div>
                 ) : (
                   projects.map((project) => (
                     <div
                       key={project.id}
-                      className={`group flex items-center gap-2 px-3 py-2 rounded font-mono text-sm cursor-pointer transition-colors ${
+                      className={`group flex items-center gap-2 px-3 py-2 font-mono text-sm cursor-pointer transition-colors ${
                         project.id === currentProjectId
-                          ? 'bg-green-900/40 text-green-400'
-                          : 'text-green-700 hover:bg-green-900/20 hover:text-green-500'
+                          ? 'bg-[rgba(255,255,255,0.1)] text-[#FFFFFF]'
+                          : 'text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#FFFFFF]'
                       }`}
                       onClick={() => {
                         onProjectSelect(project.id);
@@ -130,7 +132,7 @@ export function ActivityBar({
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-5 w-5 opacity-0 group-hover:opacity-100 text-green-900 hover:text-red-500 hover:bg-transparent"
+                        className="h-5 w-5 opacity-0 group-hover:opacity-100 text-[rgba(255,255,255,0.4)] hover:text-[#FF0000] hover:bg-transparent"
                         onClick={(e) => {
                           e.stopPropagation();
                           onDeleteProject(project.id);
@@ -147,16 +149,18 @@ export function ActivityBar({
 
           {expanded === 'tasks' && (
             <div className="flex-1 flex flex-col">
-              <div className="h-9 px-4 border-b border-green-900 flex items-center">
-                <span className="text-xs text-green-700 font-mono uppercase">Tasks</span>
+              <div className="h-9 px-4 border-b border-[rgba(255,255,255,0.15)] flex items-center">
+                <span className="text-xs text-[rgba(255,255,255,0.6)] font-[Helvetica_Neue,Arial,sans-serif] uppercase tracking-[0.2em]">
+                  Tasks
+                </span>
               </div>
               <div className="flex-1 overflow-auto p-2">
                 {!currentProjectId ? (
-                  <div className="text-center py-12 text-green-900 font-mono text-xs">
+                  <div className="text-center py-12 text-[rgba(255,255,255,0.3)] font-mono text-xs">
                     <p>select a project</p>
                   </div>
                 ) : tasks.length === 0 ? (
-                  <div className="text-center py-12 text-green-800 font-mono text-xs">
+                  <div className="text-center py-12 text-[rgba(255,255,255,0.4)] font-mono text-xs">
                     <p>no tasks</p>
                   </div>
                 ) : (
@@ -164,10 +168,10 @@ export function ActivityBar({
                     {tasks.map((task) => (
                       <div
                         key={task.id}
-                        className={`group p-3 rounded border cursor-pointer transition-colors ${
+                        className={`group p-3 border cursor-pointer transition-colors ${
                           task.id === selectedTaskId
-                            ? 'border-green-500 bg-green-950/40'
-                            : 'border-green-900/50 bg-green-950/20 hover:border-green-500/50 hover:bg-green-950/40'
+                            ? 'border-[#00FF00] bg-[rgba(0,255,0,0.1)]'
+                            : 'border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.02)] hover:border-[rgba(255,255,255,0.3)] hover:bg-[rgba(255,255,255,0.05)]'
                         }`}
                         onClick={() => {
                           onTaskSelect(task.id);
@@ -175,17 +179,19 @@ export function ActivityBar({
                         }}
                       >
                         <div className="flex items-start gap-2">
-                          <span className="text-green-800 font-mono text-xs">→</span>
+                          <span className="text-[rgba(255,255,255,0.4)] font-mono text-xs">→</span>
                           <div className="flex-1 min-w-0">
                             <p
                               className={`text-sm font-medium font-mono truncate ${
-                                task.id === selectedTaskId ? 'text-green-400' : 'text-green-500'
+                                task.id === selectedTaskId
+                                  ? 'text-[#00FF00]'
+                                  : 'text-[rgba(255,255,255,0.7)]'
                               }`}
                             >
                               {task.title}
                             </p>
                             {task.description && (
-                              <p className="text-xs text-green-700 whitespace-pre-wrap font-mono mt-1 line-clamp-2">
+                              <p className="text-xs text-[rgba(255,255,255,0.5)] whitespace-pre-wrap font-mono mt-1 line-clamp-2">
                                 {task.description}
                               </p>
                             )}
@@ -194,7 +200,7 @@ export function ActivityBar({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100 text-green-800 hover:text-red-500 hover:bg-red-950/20 shrink-0"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 text-[rgba(255,255,255,0.4)] hover:text-[#FF0000] hover:bg-[rgba(255,0,0,0.1)] shrink-0"
                           onClick={(e) => {
                             e.stopPropagation();
                             onDeleteTask(task.id);

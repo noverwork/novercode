@@ -154,11 +154,19 @@ export function Board() {
   }, []);
 
   return (
-    <div className="h-screen flex flex-col bg-black">
+    <div className="h-screen flex flex-col bg-[#0a0a0a]">
       <div className="scanlines" />
 
-      <header className="border-b border-green-900 flex items-center">
-        <h1 className="px-6 py-4 text-xl font-bold text-green-500 text-glow">[ NOVERCODE ]</h1>
+      <header className="border-b border-[rgba(255,255,255,0.15)] flex items-center">
+        <h1
+          className="px-6 py-4 text-xl font-black text-[#FFFFFF] uppercase tracking-[0.1em]"
+          style={{
+            fontFamily: 'Times New Roman, Georgia, serif',
+            transform: 'scaleY(0.8) scaleX(0.9)',
+          }}
+        >
+          NOVERCODE
+        </h1>
         {currentProject && (
           <Breadcrumbs
             currentProject={currentProject}
@@ -188,7 +196,7 @@ export function Board() {
         <div className="flex-1 flex">
           {selectedTaskId && isWorktreeReady ? (
             <div className="flex-1 flex overflow-hidden">
-              <div className="w-[60%] flex flex-col border-r border-green-900">
+              <div className="w-[60%] flex flex-col border-r border-[rgba(255,255,255,0.15)]">
                 <CanvasTerminal taskId={selectedTaskId} workingDir={workingDir || undefined} />
               </div>
               <div className="w-[40%] flex flex-col">
@@ -196,24 +204,27 @@ export function Board() {
               </div>
             </div>
           ) : selectedTaskId && !isWorktreeReady ? (
-            <div className="flex-1 flex items-center justify-center text-green-800 font-mono gap-3">
-              <div className="h-6 w-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+            <div className="flex-1 flex items-center justify-center text-[rgba(255,255,255,0.5)] font-mono gap-3">
+              <div className="h-6 w-6 border-2 border-[#00FF00] border-t-transparent rounded-full animate-spin" />
               <p>creating worktree...</p>
             </div>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-green-800 font-mono">
+            <div className="flex-1 flex items-center justify-center text-[rgba(255,255,255,0.4)] font-mono">
               <p>{currentProjectId ? 'select a task to start' : 'select a project'}</p>
             </div>
           )}
         </div>
       </div>
 
-      <footer className="border-t border-green-900 px-4 py-2 flex items-center justify-between">
-        <span className="text-xs text-green-800">
+      <footer className="border-t border-[rgba(255,255,255,0.15)] px-4 py-2 flex items-center justify-between">
+        <span className="text-xs text-[rgba(255,255,255,0.5)] font-mono">
           [ONLINE] | projects: {projects.length} | tasks: {tasks.length} | ready
         </span>
-        <span className="text-xs text-green-800 flex items-center gap-2">
-          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+        <span className="text-xs text-[rgba(255,255,255,0.5)] flex items-center gap-2">
+          <span
+            className="w-2 h-2 bg-[#00FF00] rounded-full animate-pulse"
+            style={{ boxShadow: '0 0 10px rgba(0,255,0,0.5)' }}
+          />
           <span>$</span>
           <span className="cursor-blink">█</span>
         </span>

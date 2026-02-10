@@ -78,36 +78,44 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
         <Button
           size="icon"
           variant="ghost"
-          className="h-7 w-7 text-green-700 hover:text-green-400 hover:bg-green-900/30"
+          className="h-7 w-7 text-[rgba(255,255,255,0.6)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)]"
         >
           <Settings className="h-4 w-4" />
         </Button>
       </SheetTrigger>
-      <SheetContent className="bg-black border-green-900 text-green-500">
+      <SheetContent className="bg-[#0a0a0a]">
         <SheetHeader>
-          <SheetTitle className="text-green-500 font-mono">[ SETTINGS ]</SheetTitle>
+          <SheetTitle className="text-[#FFFFFF] font-black uppercase">Settings</SheetTitle>
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
           {/* Version & Update Section */}
           <div className="space-y-3">
-            <h3 className="text-xs text-green-700 font-mono uppercase tracking-wider">Version</h3>
-            <div className="p-3 rounded border border-green-900 bg-green-950/20 space-y-3">
+            <h3 className="text-xs text-[rgba(255,255,255,0.6)] font-mono uppercase tracking-wider font-[Helvetica_Neue,Arial,sans-serif]">
+              Version
+            </h3>
+            <div className="p-3 rounded border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.02)] space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-mono text-green-600">Current</span>
-                <span className="text-sm font-mono text-green-400">v{currentVersion}</span>
+                <span className="text-sm font-mono text-[rgba(255,255,255,0.5)]">Current</span>
+                <span className="text-sm font-mono text-[rgba(255,255,255,0.8)]">
+                  v{currentVersion}
+                </span>
               </div>
 
               {/* Update Status */}
               {status === 'available' && updateInfo && (
-                <div className="pt-2 border-t border-green-900 space-y-2">
+                <div className="pt-2 border-t border-[rgba(255,255,255,0.15)] space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-mono text-green-600">Available</span>
-                    <span className="text-sm font-mono text-green-400">v{updateInfo.version}</span>
+                    <span className="text-sm font-mono text-[rgba(255,255,255,0.5)]">
+                      Available
+                    </span>
+                    <span className="text-sm font-mono text-[rgba(255,255,255,0.8)]">
+                      v{updateInfo.version}
+                    </span>
                   </div>
                   <Button
                     size="sm"
-                    className="w-full bg-green-900/50 hover:bg-green-800/50 text-green-400 border border-green-700"
+                    className="w-full bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.8)] border border-[rgba(255,255,255,0.3)]"
                     onClick={() => downloadUpdate()}
                   >
                     <Download className="h-3 w-3 mr-2" />
@@ -117,10 +125,10 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
               )}
 
               {status === 'downloading' && (
-                <div className="pt-2 border-t border-green-900 space-y-2">
+                <div className="pt-2 border-t border-[rgba(255,255,255,0.15)] space-y-2">
                   <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-green-600">Downloading...</span>
-                    <span className="text-green-400">
+                    <span className="text-[rgba(255,255,255,0.5)]">Downloading...</span>
+                    <span className="text-[rgba(255,255,255,0.8)]">
                       {downloadProgress
                         ? `${formatBytes(downloadProgress.downloaded)}${
                             downloadProgress.total
@@ -130,23 +138,26 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
                         : '...'}
                     </span>
                   </div>
-                  <div className="h-1 bg-green-950 rounded overflow-hidden">
+                  <div className="h-1 bg-[rgba(255,255,255,0.1)] rounded overflow-hidden">
                     <div
-                      className="h-full bg-green-500 transition-all duration-300"
-                      style={{ width: `${getProgressPercent()}%` }}
+                      className="h-full bg-[#00FF00] transition-all duration-300"
+                      style={{
+                        width: `${getProgressPercent()}%`,
+                        boxShadow: '0 0 10px rgba(0,255,0,0.5)',
+                      }}
                     />
                   </div>
                 </div>
               )}
 
               {status === 'ready' && (
-                <div className="pt-2 border-t border-green-900 space-y-2">
-                  <p className="text-xs font-mono text-green-600">
+                <div className="pt-2 border-t border-[rgba(255,255,255,0.15)] space-y-2">
+                  <p className="text-xs font-mono text-[rgba(255,255,255,0.5)]">
                     Update ready. Restart to apply.
                   </p>
                   <Button
                     size="sm"
-                    className="w-full bg-green-900/50 hover:bg-green-800/50 text-green-400 border border-green-700"
+                    className="w-full bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.8)] border border-[rgba(255,255,255,0.3)]"
                     onClick={() => restart()}
                   >
                     <RotateCcw className="h-3 w-3 mr-2" />
@@ -160,7 +171,7 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
                 <Button
                   size="sm"
                   variant="outline"
-                  className="w-full border-green-900 text-green-600 hover:bg-green-900/30 hover:text-green-400"
+                  className="w-full border-[rgba(255,255,255,0.3)] text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#FFFFFF]"
                   onClick={() => checkUpdate(true)}
                 >
                   <RefreshCw className="h-3 w-3 mr-2" />
@@ -172,7 +183,7 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
                 <Button
                   size="sm"
                   variant="outline"
-                  className="w-full border-green-900 text-green-600"
+                  className="w-full border-[rgba(255,255,255,0.3)] text-[rgba(255,255,255,0.6)]"
                   disabled
                 >
                   <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
@@ -184,13 +195,16 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
 
           {/* Claude Section */}
           <div className="space-y-3">
-            <h3 className="text-xs text-green-700 font-mono uppercase tracking-wider">
+            <h3 className="text-xs text-[rgba(255,255,255,0.6)] font-mono uppercase tracking-wider font-[Helvetica_Neue,Arial,sans-serif]">
               <Terminal className="h-3 w-3 inline mr-1" />
               Claude
             </h3>
-            <div className="p-3 rounded border border-green-900 bg-green-950/20 space-y-3">
+            <div className="p-3 rounded border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.02)] space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="claude-path" className="text-xs font-mono text-green-600">
+                <Label
+                  htmlFor="claude-path"
+                  className="text-xs font-mono text-[rgba(255,255,255,0.5)]"
+                >
                   Claude Executable Path
                 </Label>
                 <Input
@@ -198,16 +212,16 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
                   value={claudePathInput}
                   onChange={(e) => setClaudePathInput(e.target.value)}
                   placeholder="/Users/xxx/.asdf/installs/nodejs/.../bin/claude"
-                  className="font-mono text-xs bg-black border-green-900 text-green-400 placeholder:text-green-900"
+                  className="font-mono text-xs"
                 />
-                <p className="text-xs font-mono text-green-800">
+                <p className="text-xs font-mono text-[rgba(255,255,255,0.4)]">
                   Leave empty to use PATH. Required for production builds.
                 </p>
               </div>
               {claudePathInput !== (settings.claudePath || '') && (
                 <Button
                   size="sm"
-                  className="w-full bg-green-900/50 hover:bg-green-800/50 text-green-400 border border-green-700"
+                  className="w-full bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.8)] border border-[rgba(255,255,255,0.3)]"
                   onClick={saveClaudePath}
                   disabled={saving}
                 >
@@ -219,12 +233,16 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
 
           {/* About Section */}
           <div className="space-y-3">
-            <h3 className="text-xs text-green-700 font-mono uppercase tracking-wider">About</h3>
-            <div className="p-3 rounded border border-green-900 bg-green-950/20 space-y-1">
-              <p className="text-xs font-mono text-green-600">
+            <h3 className="text-xs text-[rgba(255,255,255,0.6)] font-mono uppercase tracking-wider font-[Helvetica_Neue,Arial,sans-serif]">
+              About
+            </h3>
+            <div className="p-3 rounded border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.02)] space-y-1">
+              <p className="text-xs font-mono text-[rgba(255,255,255,0.5)]">
                 NOVERCODE - Task-based Development Environment
               </p>
-              <p className="text-xs font-mono text-green-800">Built with Tauri + React</p>
+              <p className="text-xs font-mono text-[rgba(255,255,255,0.4)]">
+                Built with Tauri + React
+              </p>
             </div>
           </div>
         </div>
