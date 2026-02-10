@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ActivityBar } from '@/components/activity-bar';
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { AddProjectDialog } from '@/components/kanban/add-project-dialog';
+import { AddTaskDialog } from '@/components/kanban/add-task-dialog';
 import { CanvasTerminal } from '@/components/kanban/canvas-terminal';
 import { DiffView } from '@/components/kanban/diff-view';
 import { QuickSwitcher } from '@/components/quick-switcher';
@@ -27,10 +29,12 @@ export function Board() {
     currentProject,
     currentProjectId,
     setCurrentProjectId,
+    addProject,
     deleteProject,
     getTasksByProject,
     tasks: currentTasks,
     allTasks,
+    addTask,
     deleteTask,
     getRecentTasks,
     trackRecentTask,
@@ -40,6 +44,8 @@ export function Board() {
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const [quickSwitcherMode, setQuickSwitcherMode] = useState<'projects' | 'tasks'>('projects');
   const [focusedPanel, setFocusedPanel] = useState<'terminal' | 'diff'>('terminal');
+  const [addTaskOpen, setAddTaskOpen] = useState(false);
+  const [addProjectOpen, setAddProjectOpen] = useState(false);
 
   const workingDir = useMemo(() => {
     if (worktree.status === 'ready' && worktree.taskId === selectedTaskId) {
@@ -167,9 +173,33 @@ export function Board() {
     setSelectedTaskId(null);
   };
 
+  const handleAddTask = useCallback(
+    async (title: string) => {
+      await addTask(title, '');
+      const newTaskId = allTasks[allTasks.length - 1]?.id;
+      if (newTaskId) {
+        handleSelectTask(newTaskId);
+      }
+    },
+    [addTask, allTasks, handleSelectTask]
+  );
+
+  const handleAddProject = useCallback(
+    async (name: string, path?: string, baseBranch?: string) => {
+      await addProject(name, path, baseBranch);
+      return '';
+    },
+    [addProject]
+  );
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'P') {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        if (currentProjectId) {
+          setAddTaskOpen(true);
+        }
+      } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'P') {
         e.preventDefault();
         handleQuickSwitchProjects();
       } else if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
@@ -192,7 +222,7 @@ export function Board() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTaskId, recentTasks, currentProject, projects, handleRecentTask]);
+  }, [selectedTaskId, recentTasks, currentProject, projects, handleRecentTask, currentProjectId]);
 
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a]">
@@ -217,6 +247,8 @@ export function Board() {
             currentProjectId={currentProjectId}
             onProjectSelect={setCurrentProjectId}
             onTaskSelect={handleSelectTask}
+            onAddProject={() => setAddProjectOpen(true)}
+            onAddTask={() => setAddTaskOpen(true)}
           />
         )}
       </header>
@@ -234,7 +266,7 @@ export function Board() {
           onDeleteTask={deleteTask}
         />
 
-        <div className="flex-1 flex">
+        <div className="flex-1 flex relative">
           {selectedTaskId && isWorktreeReady ? (
             <div className="flex-1 flex overflow-hidden">
               <div className="w-[60%] flex flex-col border-r border-[rgba(255,255,255,0.15)]">
@@ -294,6 +326,12 @@ export function Board() {
         selectedTaskId={selectedTaskId}
         onProjectSelect={setCurrentProjectId}
         onTaskSelect={handleSelectTask}
+      />
+      <AddTaskDialog open={addTaskOpen} onOpenChange={setAddTaskOpen} onAdd={handleAddTask} />
+      <AddProjectDialog
+        open={addProjectOpen}
+        onOpenChange={setAddProjectOpen}
+        onAdd={handleAddProject}
       />
     </div>
   );
