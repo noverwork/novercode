@@ -13,8 +13,16 @@ interface Settings {
   claudePath?: string | null;
 }
 
-export function SettingsSheet() {
-  const [open, setOpen] = useState(false);
+interface SettingsSheetProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSheetProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
+
   const [settings, setSettings] = useState<Settings>({});
   const [claudePathInput, setClaudePathInput] = useState('');
   const [saving, setSaving] = useState(false);

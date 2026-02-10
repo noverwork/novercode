@@ -1,31 +1,18 @@
 import { invoke } from '@tauri-apps/api/core';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Folder,
-  GitCompare,
-  Loader2,
-  Terminal,
-  Trash2,
-} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { SettingsSheet } from '@/components/settings-sheet';
-import { Button } from '@/components/ui/button';
+import { ActivityBar } from '@/components/activity-bar';
+import { Breadcrumbs } from '@/components/breadcrumbs';
+import { CommandPalette } from '@/components/command-palette';
+import { CanvasTerminal } from '@/components/kanban/canvas-terminal';
+import { DiffView } from '@/components/kanban/diff-view';
 import { useKanban } from '@/hooks/useKanban';
-
-import { AddProjectDialog } from './add-project-dialog';
-import { AddTaskDialog } from './add-task-dialog';
-import { CanvasTerminal } from './canvas-terminal';
-import { DiffView } from './diff-view';
-import { TaskCard } from './task-card';
 
 type WorktreeState =
   | { status: 'idle' }
   | { status: 'loading'; taskId: string }
   | { status: 'ready'; taskId: string; dir: string | null };
 
-// Kill terminal helper
 async function killTerminal(taskId: string) {
   try {
     await invoke('terminal_kill', { id: taskId });
@@ -40,19 +27,15 @@ export function Board() {
     currentProject,
     currentProjectId,
     setCurrentProjectId,
-    addProject,
     deleteProject,
     getTasksByProject,
     tasks,
-    addTask,
     deleteTask,
   } = useKanban();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [worktree, setWorktree] = useState<WorktreeState>({ status: 'idle' });
-  const [projectsCollapsed, setProjectsCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<'claude' | 'diff'>('claude');
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
-  // Derived state from worktree
   const workingDir = useMemo(() => {
     if (worktree.status === 'ready' && worktree.taskId === selectedTaskId) {
       return worktree.dir;
@@ -65,19 +48,19 @@ export function Board() {
     return worktree.status === 'ready' && worktree.taskId === selectedTaskId;
   }, [worktree, selectedTaskId]);
 
-  // 選擇 task 時建立 worktree
+  const selectedTask = tasks.find((t) => t.id === selectedTaskId) || null;
+
+  /* eslint-disable react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect */
   useEffect(() => {
     if (!selectedTaskId) return;
 
-    // 如果 project 沒有 path，直接標記為 ready
     if (!currentProject?.path) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect -- intentional sync for early return
+      // No path means project doesn't have git - skip worktree
       setWorktree({ status: 'ready', taskId: selectedTaskId, dir: null });
       return;
     }
 
-    // Set loading state - intentional sync setState for loading indicator
-    // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
+    // Set loading state for async worktree creation
     setWorktree({ status: 'loading', taskId: selectedTaskId });
 
     let cancelled = false;
@@ -109,14 +92,13 @@ export function Board() {
       cancelled = true;
     };
   }, [selectedTaskId, currentProject?.path, currentProject?.name, currentProject?.baseBranch]);
+  /* eslint-enable react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect */
 
-  // 刪除 task 時也移除 worktree
   const handleDeleteTask = async (id: string) => {
     await killTerminal(id);
     if (selectedTaskId === id) {
       setSelectedTaskId(null);
     }
-    // 移除 worktree
     if (currentProject) {
       try {
         await invoke('remove_worktree', {
@@ -131,12 +113,10 @@ export function Board() {
     await deleteTask(id);
   };
 
-  // 刪除 project 時也要 kill 相關的 terminal 和移除 worktrees
   const handleDeleteProject = async (projectId: string) => {
     const projectTasks = getTasksByProject(projectId);
     const project = projects.find((p) => p.id === projectId);
 
-    // Kill terminals 和移除 worktrees
     if (project) {
       for (const t of projectTasks) {
         await killTerminal(t.id);
@@ -161,184 +141,63 @@ export function Board() {
     await deleteProject(projectId);
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <div className="h-screen flex flex-col bg-black">
-      {/* Scanlines */}
       <div className="scanlines" />
 
-      {/* Header */}
-      <header className="border-b border-green-900 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-green-500 text-glow">[ NOVERCODE ]</h1>
-        <div className="flex items-center gap-2">
-          {currentProjectId && (
-            <AddTaskDialog
-              onAdd={async (title) => {
-                const newId = await addTask(title, '');
-                setSelectedTaskId(newId);
-              }}
-            />
-          )}
-          <SettingsSheet />
-        </div>
+      <header className="border-b border-green-900 flex items-center">
+        <h1 className="px-6 py-4 text-xl font-bold text-green-500 text-glow">[ NOVERCODE ]</h1>
+        {currentProject && (
+          <Breadcrumbs
+            currentProject={currentProject}
+            selectedTask={selectedTask}
+            projects={projects}
+            tasks={tasks}
+            currentProjectId={currentProjectId}
+            onProjectSelect={setCurrentProjectId}
+            onTaskSelect={setSelectedTaskId}
+          />
+        )}
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Project List - Far Left */}
-        <div
-          className={`${projectsCollapsed ? 'w-10' : 'w-48'} border-r border-green-900 flex flex-col transition-[width] duration-150 ease-out`}
-        >
-          <div className="h-9 px-2 border-b border-green-900 flex items-center justify-between gap-1">
-            {!projectsCollapsed && (
-              <>
-                <span className="text-xs text-green-700 font-mono">projects</span>
-                <AddProjectDialog onAdd={addProject} />
-              </>
-            )}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-5 w-5 text-green-700 hover:text-green-400 hover:bg-green-900/30"
-              onClick={() => setProjectsCollapsed(!projectsCollapsed)}
-            >
-              {projectsCollapsed ? (
-                <ChevronRight className="h-3 w-3" />
-              ) : (
-                <ChevronLeft className="h-3 w-3" />
-              )}
-            </Button>
-          </div>
-          <div className="flex-1 overflow-auto p-2 space-y-1">
-            {projectsCollapsed ? (
-              projects.map((project) => (
-                <div
-                  key={project.id}
-                  className={`flex items-center justify-center p-1.5 rounded cursor-pointer transition-colors ${
-                    project.id === currentProjectId
-                      ? 'bg-green-900/30 text-green-400'
-                      : 'text-green-700 hover:bg-green-900/20 hover:text-green-500'
-                  }`}
-                  onClick={() => {
-                    setCurrentProjectId(project.id);
-                    setSelectedTaskId(null);
-                  }}
-                  title={project.name}
-                >
-                  <Folder className="h-4 w-4" />
-                </div>
-              ))
-            ) : projects.length === 0 ? (
-              <div className="text-center py-8 text-green-900 font-mono text-xs">
-                <p>no projects</p>
-              </div>
-            ) : (
-              projects.map((project) => (
-                <div
-                  key={project.id}
-                  className={`group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer font-mono text-sm transition-colors ${
-                    project.id === currentProjectId
-                      ? 'bg-green-900/30 text-green-400'
-                      : 'text-green-700 hover:bg-green-900/20 hover:text-green-500'
-                  }`}
-                  onClick={() => {
-                    setCurrentProjectId(project.id);
-                    setSelectedTaskId(null);
-                  }}
-                >
-                  <Folder className="h-3 w-3 shrink-0" />
-                  <span className="truncate flex-1">{project.name}</span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-5 w-5 opacity-0 group-hover:opacity-100 text-green-900 hover:text-red-500 hover:bg-transparent"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteProject(project.id);
-                    }}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+      <div className="flex-1 flex overflow-hidden relative">
+        <ActivityBar
+          projects={projects}
+          tasks={tasks}
+          currentProjectId={currentProjectId}
+          currentProject={currentProject}
+          selectedTaskId={selectedTaskId}
+          onProjectSelect={setCurrentProjectId}
+          onTaskSelect={setSelectedTaskId}
+          onDeleteProject={handleDeleteProject}
+          onDeleteTask={handleDeleteTask}
+        />
 
-        {/* Task List - Left */}
-        <div className="w-72 border-r border-green-900 flex flex-col">
-          <div className="h-9 px-3 border-b border-green-900 flex items-center">
-            <span className="text-xs text-green-700 font-mono">
-              {currentProject ? `tasks / ${currentProject.name}` : 'tasks'}
-            </span>
-          </div>
-          <div className="flex-1 overflow-auto p-3">
-            <div className="space-y-2">
-              {!currentProjectId ? (
-                <div className="text-center py-12 text-green-900 font-mono text-xs">
-                  <p>select a project</p>
-                </div>
-              ) : tasks.length === 0 ? (
-                <div className="text-center py-12 text-green-800 font-mono">
-                  <p>no tasks</p>
-                  <p className="text-xs mt-2">click [add task]</p>
-                </div>
-              ) : (
-                tasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    selected={task.id === selectedTaskId}
-                    onDelete={handleDeleteTask}
-                    onClick={setSelectedTaskId}
-                  />
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Terminal / Diff - Right */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex">
           {selectedTaskId && isWorktreeReady ? (
-            <>
-              {/* Tabs */}
-              <div className="h-9 flex items-center px-2 gap-1">
-                <button
-                  onClick={() => setActiveTab('claude')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-xs transition-colors ${
-                    activeTab === 'claude'
-                      ? 'bg-green-900/40 text-green-400'
-                      : 'text-green-700 hover:bg-green-900/20 hover:text-green-500'
-                  }`}
-                >
-                  <Terminal className="h-3 w-3" />
-                  claude
-                </button>
-                <button
-                  onClick={() => setActiveTab('diff')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-xs transition-colors ${
-                    activeTab === 'diff'
-                      ? 'bg-green-900/40 text-green-400'
-                      : 'text-green-700 hover:bg-green-900/20 hover:text-green-500'
-                  }`}
-                >
-                  <GitCompare className="h-3 w-3" />
-                  diff
-                </button>
+            <div className="flex-1 flex overflow-hidden">
+              <div className="w-[60%] flex flex-col border-r border-green-900">
+                <CanvasTerminal taskId={selectedTaskId} workingDir={workingDir || undefined} />
               </div>
-
-              {/* Content */}
-              <div className="flex-1 overflow-hidden">
-                {activeTab === 'claude' ? (
-                  <CanvasTerminal taskId={selectedTaskId} workingDir={workingDir || undefined} />
-                ) : (
-                  <DiffView workingDir={workingDir || undefined} />
-                )}
+              <div className="w-[40%] flex flex-col">
+                <DiffView workingDir={workingDir || undefined} />
               </div>
-            </>
+            </div>
           ) : selectedTaskId && !isWorktreeReady ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-green-800 font-mono gap-3">
-              <Loader2 className="h-6 w-6 animate-spin text-green-600" />
+            <div className="flex-1 flex items-center justify-center text-green-800 font-mono gap-3">
+              <div className="h-6 w-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
               <p>creating worktree...</p>
             </div>
           ) : (
@@ -349,7 +208,6 @@ export function Board() {
         </div>
       </div>
 
-      {/* Status Bar */}
       <footer className="border-t border-green-900 px-4 py-2 flex items-center justify-between">
         <span className="text-xs text-green-800">
           [ONLINE] | projects: {projects.length} | tasks: {tasks.length} | ready
@@ -360,6 +218,17 @@ export function Board() {
           <span className="cursor-blink">█</span>
         </span>
       </footer>
+
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        projects={projects}
+        tasks={tasks}
+        currentProjectId={currentProjectId}
+        selectedTaskId={selectedTaskId}
+        onProjectSelect={setCurrentProjectId}
+        onTaskSelect={setSelectedTaskId}
+      />
     </div>
   );
 }

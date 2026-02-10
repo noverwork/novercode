@@ -1,4 +1,4 @@
-import { open } from '@tauri-apps/plugin-dialog';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { FolderOpen, FolderPlus } from 'lucide-react';
 import { useState } from 'react';
 
@@ -15,24 +15,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 interface AddProjectDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onAdd: (name: string, path?: string, baseBranch?: string) => void | Promise<string>;
 }
 
-// 從 path 提取名稱
 function extractName(path: string): string {
-  // Git URL: git@github.com:user/repo.git -> repo
-  // Git URL: https://github.com/user/repo.git -> repo
   const gitMatch = path.match(/\/([^/]+?)(\.git)?$/);
   if (gitMatch) {
     return gitMatch[1];
   }
-  // Local path: /path/to/folder -> folder
   const parts = path.replace(/[/\\]+$/, '').split(/[/\\]/);
   return parts[parts.length - 1] || path;
 }
 
-export function AddProjectDialog({ onAdd }: AddProjectDialogProps) {
-  const [dialogOpen, setDialogOpen] = useState(false);
+export function AddProjectDialog({
+  open: controlledOpen,
+  onOpenChange,
+  onAdd,
+}: AddProjectDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
+
   const [path, setPath] = useState('');
   const [baseBranch, setBaseBranch] = useState('main');
 
@@ -44,12 +49,12 @@ export function AddProjectDialog({ onAdd }: AddProjectDialogProps) {
       await onAdd(derivedName, path.trim() || undefined, baseBranch.trim() || undefined);
       setPath('');
       setBaseBranch('main');
-      setDialogOpen(false);
+      setOpen(false);
     }
   };
 
   const handleSelectFolder = async () => {
-    const selected = await open({
+    const selected = await openDialog({
       directory: true,
       multiple: false,
       title: 'Select Project Folder',
@@ -60,7 +65,7 @@ export function AddProjectDialog({ onAdd }: AddProjectDialogProps) {
   };
 
   return (
-    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           size="sm"
@@ -124,7 +129,7 @@ export function AddProjectDialog({ onAdd }: AddProjectDialogProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setDialogOpen(false)}
+              onClick={() => setOpen(false)}
               className="font-mono text-sm border border-green-900 text-green-700 hover:bg-green-900/20 hover:text-green-600 bg-transparent"
             >
               [cancel]

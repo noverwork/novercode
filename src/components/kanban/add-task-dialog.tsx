@@ -14,11 +14,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 interface AddTaskDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onAdd: (title: string) => void | Promise<void> | Promise<string>;
 }
 
-export function AddTaskDialog({ onAdd }: AddTaskDialogProps) {
-  const [open, setOpen] = useState(false);
+export function AddTaskDialog({ open: controlledOpen, onOpenChange, onAdd }: AddTaskDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
+
   const [title, setTitle] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
