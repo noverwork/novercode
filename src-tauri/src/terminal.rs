@@ -229,8 +229,9 @@ fn extract_grid(term: &Term<TauriEventListener>, id: &str) -> TerminalGrid {
     rows.saturating_sub(1) // Default to bottom if out of range
   };
 
-  // Always hide shell cursor - Claude Code renders its own cursor
-  let cursor_visible = false;
+  let cursor_visible = term
+    .mode()
+    .contains(alacritty_terminal::term::TermMode::SHOW_CURSOR);
 
   TerminalGrid {
     id: id.to_string(),
