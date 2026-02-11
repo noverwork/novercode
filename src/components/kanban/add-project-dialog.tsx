@@ -66,15 +66,17 @@ export function AddProjectDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="font-mono text-xs uppercase tracking-[0.15em] text-[rgba(255,255,255,0.6)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)]"
-        >
-          <FolderPlus className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+      {controlledOpen === undefined && (
+        <DialogTrigger asChild>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="font-mono text-xs uppercase tracking-[0.15em] text-[rgba(255,255,255,0.6)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)]"
+          >
+            <FolderPlus className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="bg-[#0a0a0a] border border-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.8)] font-mono">
         <form onSubmit={handleSubmit}>
           <DialogHeader>

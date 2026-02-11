@@ -43,12 +43,14 @@ export function AddTaskDialog({ open: controlledOpen, onOpenChange, onAdd }: Add
 
   return (
     <Dialog open={open} onOpenChange={(v) => !isLoading && setOpen(v)}>
-      <DialogTrigger asChild>
-        <Button size="sm" className="font-mono text-xs uppercase tracking-[0.15em]">
-          <Plus className="h-4 w-4 mr-1" />
-          [add task]
-        </Button>
-      </DialogTrigger>
+      {controlledOpen === undefined && (
+        <DialogTrigger asChild>
+          <Button size="sm" className="font-mono text-xs uppercase tracking-[0.15em]">
+            <Plus className="h-4 w-4 mr-1" />
+            [add task]
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="bg-[#0a0a0a] border border-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.8)] font-mono">
         <form onSubmit={handleSubmit}>
           <DialogHeader>

@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { FolderPlus, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ActivityBar } from '@/components/activity-bar';
@@ -247,8 +248,6 @@ export function Board() {
             currentProjectId={currentProjectId}
             onProjectSelect={setCurrentProjectId}
             onTaskSelect={handleSelectTask}
-            onAddProject={() => setAddProjectOpen(true)}
-            onAddTask={() => setAddTaskOpen(true)}
           />
         )}
       </header>
@@ -288,6 +287,25 @@ export function Board() {
               <p>{currentProjectId ? 'select a task to start' : 'select a project'}</p>
             </div>
           )}
+          <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAddProjectOpen(true)}
+              aria-label="add project"
+              className="h-11 w-11 cursor-pointer rounded-lg border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.7)] transition-all duration-200 hover:border-[rgba(255,255,255,0.35)] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#FFFFFF]"
+            >
+              <FolderPlus className="mx-auto h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddTaskOpen(true)}
+              aria-label="add task"
+              disabled={!currentProjectId}
+              className="h-11 w-11 cursor-pointer rounded-lg border border-[rgba(0,255,0,0.45)] bg-[rgba(0,255,0,0.12)] text-[#00FF00] shadow-[0_0_10px_rgba(0,255,0,0.3)] transition-all duration-200 hover:bg-[rgba(0,255,0,0.2)] hover:shadow-[0_0_16px_rgba(0,255,0,0.45)] disabled:cursor-not-allowed disabled:border-[rgba(255,255,255,0.12)] disabled:bg-[rgba(255,255,255,0.06)] disabled:text-[rgba(255,255,255,0.35)] disabled:shadow-none"
+            >
+              <Plus className="mx-auto h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 

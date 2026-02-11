@@ -1,7 +1,6 @@
-import { ChevronDown, Folder, FolderPlus, Plus } from 'lucide-react';
+import { ChevronDown, Folder } from 'lucide-react';
 import { useState } from 'react';
 
-import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Project, Task } from '@/hooks/useKanban';
 
@@ -13,8 +12,6 @@ interface BreadcrumbsProps {
   currentProjectId: string | null;
   onProjectSelect: (id: string) => void;
   onTaskSelect: (id: string) => void;
-  onAddProject?: () => void;
-  onAddTask?: () => void;
 }
 
 export function Breadcrumbs({
@@ -25,8 +22,6 @@ export function Breadcrumbs({
   currentProjectId,
   onProjectSelect,
   onTaskSelect,
-  onAddProject,
-  onAddTask,
 }: BreadcrumbsProps) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'projects' | 'tasks'>('projects');
@@ -82,28 +77,6 @@ export function Breadcrumbs({
             </button>
           </div>
 
-          <div className="mt-4 flex justify-end">
-            <Button
-              size="sm"
-              onClick={onAddProject}
-              className="font-mono text-xs uppercase tracking-[0.15em]"
-            >
-              <FolderPlus className="h-3 w-3 mr-1" />
-              [add project]
-            </Button>
-          </div>
-
-          <div className="mt-4 flex justify-end">
-            <Button
-              size="sm"
-              onClick={onAddTask}
-              className="font-mono text-xs uppercase tracking-[0.15em]"
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              [add task]
-            </Button>
-          </div>
-
           <div className="py-4">
             {activeTab === 'projects' && (
               <div className="space-y-2">
@@ -133,16 +106,6 @@ export function Breadcrumbs({
                     ))}
                   </div>
                 )}
-                <div className="mt-4 flex justify-end">
-                  <Button
-                    size="sm"
-                    onClick={onAddProject}
-                    className="font-mono text-xs uppercase tracking-[0.15em]"
-                  >
-                    <FolderPlus className="h-3 w-3 mr-1" />
-                    [add project]
-                  </Button>
-                </div>
               </div>
             )}
 
@@ -182,16 +145,6 @@ export function Breadcrumbs({
                     ))}
                   </div>
                 )}
-                <div className="mt-4 flex justify-end">
-                  <Button
-                    size="sm"
-                    onClick={onAddTask}
-                    className="font-mono text-xs uppercase tracking-[0.15em]"
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    [add task]
-                  </Button>
-                </div>
               </div>
             )}
 
