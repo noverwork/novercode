@@ -154,7 +154,7 @@ export function Board() {
             projectPath: project.path,
           });
         } catch (e) {
-          console.error('Failed to remove worktree:', e);
+          console.error('Failed to remove task workspace:', e);
         }
       }
     }

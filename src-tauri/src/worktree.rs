@@ -139,7 +139,7 @@ pub fn create_worktree(
   // 確保 worktrees 目錄存在
   let worktrees_dir = get_worktrees_dir(&app)?;
   std::fs::create_dir_all(&worktrees_dir)
-    .map_err(|e| format!("Failed to create worktrees dir: {e}"))?;
+    .map_err(|e| format!("Failed to create task workspace directory: {e}"))?;
 
   let new_branch = format!("task/{}", &task_id[..8]);
   let base = base_branch.unwrap_or_else(|| "main".to_string());

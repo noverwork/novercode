@@ -30,3 +30,6 @@
 
 - Switched board selection flow from `create_worktree` to `get_task_working_dir` so opening an existing task is read-only with respect to workspace provisioning.
 - Kept `get_task_working_dir` deterministic (`worktrees/{project_id}/{task_id}`) with explicit fallback to `project_path` for older tasks that predate copied workspaces.
+
+- Updated backend error message in src-tauri/src/worktree.rs from "Failed to create worktrees dir:" to "Failed to create task workspace directory:" to align with the new mental model of "Task Copy" or "Task Workspace" instead of Git "worktree".
+- Verified that src/components/kanban/board.tsx already uses "task workspace" in its console.error message (line 157).

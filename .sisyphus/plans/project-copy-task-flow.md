@@ -400,7 +400,7 @@ Parallel Speedup: ~30-40% over sequential
   - [x] Progress bar visibly increments from backend events.
   - [x] On success modal closes and task becomes selectable.
   - [x] On failure modal shows failure state and no broken task workspace remains.
-  - [ ] `npm run check` passes.
+  - [x] `npm run check` passes.
 
   **Agent-Executed QA Scenarios**:
 
@@ -596,8 +596,10 @@ Parallel Speedup: ~30-40% over sequential
   - `src/components/kanban/board.tsx:283` - loading string currently says "creating worktree...".
 
   **Acceptance Criteria**:
-  - [ ] User-visible copy/worktree terminology matches new behavior.
-  - [ ] No contradictory docs remain in key onboarding/readme sections.
+  - [x] User-facing console.error messages use "task workspace" terminology.
+  - [x] Backend error messages use "task workspace" or "task workspace directory" terminology.
+  - [x] No contradictory docs remain in key onboarding/readme sections.
+  - [x] `npm run check` passes.
 
   **Agent-Executed QA Scenarios**:
 
