@@ -248,8 +248,16 @@ fn extract_grid(term: &Term<TauriEventListener>, id: &str) -> TerminalGrid {
 
 /// Build pure startup arguments for terminal creation
 /// Returns plain shell login args without any command execution
-pub fn build_startup_args(_shell: &str) -> Vec<String> {
-  vec!["-l".into()]
+pub fn build_startup_args(cwd: &Option<String>) -> Vec<String> {
+  let mut args = vec!["-l".into()];
+
+  // Add cd command to switch to working directory
+  if let Some(dir) = cwd {
+    args.push("-c".into());
+    args.push(format!("cd \"{}\" && exec \"$SHELL\"", dir));
+  }
+
+  args
 }
 
 // ============ Tauri Commands ============
@@ -341,14 +349,14 @@ pub async fn terminal_create(
   // PTY options - use pure startup args
   #[cfg(target_os = "windows")]
   let pty_config = PtyOptions {
-    shell: Some(tty::Shell::new(shell.clone(), build_startup_args(&shell))),
+    shell: Some(tty::Shell::new(shell.clone(), build_startup_args(&cwd))),
     working_directory: cwd.map(PathBuf::from),
     env: std::collections::HashMap::new(),
     drain_on_exit: false,
   };
   #[cfg(not(target_os = "windows"))]
   let pty_config = PtyOptions {
-    shell: Some(tty::Shell::new(shell.clone(), build_startup_args(&shell))),
+    shell: Some(tty::Shell::new(shell.clone(), build_startup_args(&cwd))),
     working_directory: cwd.map(PathBuf::from),
     env: std::collections::HashMap::new(),
     drain_on_exit: false,
