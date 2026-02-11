@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { FolderPlus, Plus } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ActivityBar } from '@/components/activity-bar';
 import { Breadcrumbs } from '@/components/breadcrumbs';
@@ -68,6 +68,7 @@ export function Board() {
   const [addProjectOpen, setAddProjectOpen] = useState(false);
   const [progressDialogOpen, setProgressDialogOpen] = useState(false);
   const [copyProgress, setCopyProgress] = useState<CopyProgressData | undefined>(undefined);
+  const selectionRequestRef = useRef(0);
 
   const workingDir = useMemo(() => {
     if (worktree.status === 'ready' && worktree.taskId === selectedTaskId) {
@@ -85,60 +86,6 @@ export function Board() {
     () => allTasks.find((t) => t.id === selectedTaskId) || null,
     [allTasks, selectedTaskId]
   );
-
-  /* eslint-disable react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect */
-  useEffect(() => {
-    if (!selectedTaskId) {
-      setWorktree({ status: 'idle' });
-      return;
-    }
-
-    const task = allTasks.find((item) => item.id === selectedTaskId);
-    const taskProject = task ? projects.find((item) => item.id === task.projectId) : null;
-    const project = taskProject || currentProject;
-
-    if (!project?.path) {
-      // No path means project doesn't have workspace path
-      setWorktree({ status: 'ready', taskId: selectedTaskId, dir: null });
-      return;
-    }
-
-    // Set loading state for async workspace resolution
-    setWorktree({ status: 'loading', taskId: selectedTaskId });
-
-    let cancelled = false;
-    const resolveWorkingDir = async () => {
-      try {
-        const path = await invoke<string | null>('get_task_working_dir', {
-          taskId: selectedTaskId,
-          projectId: project.id,
-          projectPath: project.path,
-        });
-        if (!cancelled) {
-          setWorktree({
-            status: 'ready',
-            taskId: selectedTaskId,
-            dir: path || project.path || null,
-          });
-        }
-      } catch (e) {
-        console.error('Failed to resolve working directory:', e);
-        if (!cancelled) {
-          setWorktree({
-            status: 'ready',
-            taskId: selectedTaskId,
-            dir: project.path || null,
-          });
-        }
-      }
-    };
-
-    resolveWorkingDir();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedTaskId, allTasks, currentProject, projects]);
-  /* eslint-enable react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect */
 
   const handleDeleteProject = async (projectId: string) => {
     const projectTasks = getTasksByProject(projectId);
@@ -168,9 +115,50 @@ export function Board() {
     await deleteProject(projectId);
   };
 
-  const handleSelectTask = useCallback((id: string) => {
-    setSelectedTaskId(id);
-  }, []);
+  const handleSelectTask = useCallback(
+    async (id: string) => {
+      setSelectedTaskId(id);
+
+      const task = allTasks.find((item) => item.id === id);
+      const taskProject = task ? projects.find((item) => item.id === task.projectId) : null;
+      const project = taskProject || currentProject;
+
+      if (!project?.path) {
+        setWorktree({ status: 'ready', taskId: id, dir: null });
+        return;
+      }
+
+      const requestId = selectionRequestRef.current + 1;
+      selectionRequestRef.current = requestId;
+      setWorktree({ status: 'loading', taskId: id });
+
+      try {
+        const path = await invoke<string | null>('get_task_working_dir', {
+          taskId: id,
+          projectId: project.id,
+          projectPath: project.path,
+        });
+
+        if (selectionRequestRef.current === requestId) {
+          setWorktree({
+            status: 'ready',
+            taskId: id,
+            dir: path || project.path || null,
+          });
+        }
+      } catch (e) {
+        console.error('Failed to resolve working directory:', e);
+        if (selectionRequestRef.current === requestId) {
+          setWorktree({
+            status: 'ready',
+            taskId: id,
+            dir: project.path || null,
+          });
+        }
+      }
+    },
+    [allTasks, currentProject, projects]
+  );
 
   const handleDeleteTask = useCallback(
     async (taskId: string) => {

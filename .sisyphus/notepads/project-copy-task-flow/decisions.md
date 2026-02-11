@@ -38,3 +38,9 @@
 
 - Added explicit `spawn_failed` failure-event emission for `copy_task` so frontend always receives a terminal `copy-progress` event with `status: failed`, even when the blocking copy worker cannot complete.
 - On `spawn_failed`, backend now attempts destination cleanup before returning `Err(CopyTaskError)`, preventing silent partial workspace leftovers from thread-panic/join-failure paths.
+
+## 2026-02-11 (task 5)
+
+- Moved task working-directory resolution into `handleSelectTask` in `board.tsx` so selecting an existing task is on-demand and does not rely on selection-time workspace creation flows.
+- Kept resolution anchored to the selected task's owning project (`allTasks -> projectId`) before invoking `get_task_working_dir`, ensuring terminal and diff open against the correct copy path.
+- Confirmed backend fallback remains intact in `get_task_working_dir`: return deterministic `worktrees/{project_id}/{task_id}` when present, otherwise fall back to `project_path` for legacy tasks.
