@@ -69,6 +69,44 @@ fn ensure_within_worktrees_root(app: &AppHandle, path: &Path) -> Result<(), Stri
   ensure_path_within_root(&root, path)
 }
 
+fn ensure_trailing_slash(path: &Path) -> String {
+  let mut value = path.to_string_lossy().to_string();
+  if !value.ends_with(std::path::MAIN_SEPARATOR) {
+    value.push(std::path::MAIN_SEPARATOR);
+  }
+  value
+}
+
+fn rsync_project_to_workspace(source: &Path, destination: &Path) -> Result<(), String> {
+  let source_arg = ensure_trailing_slash(source);
+  let destination_arg = ensure_trailing_slash(destination);
+
+  let output = Command::new("rsync")
+    .args([
+      "-a",
+      "--ignore-existing",
+      "--exclude",
+      ".DS_Store",
+      &source_arg,
+      &destination_arg,
+    ])
+    .output()
+    .map_err(|e| format!("Failed to launch rsync: {e}"))?;
+
+  if output.status.success() {
+    return Ok(());
+  }
+
+  let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+  if stderr.is_empty() {
+    return Err("rsync failed while preparing task workspace".to_string());
+  }
+
+  Err(format!(
+    "rsync failed while preparing task workspace: {stderr}"
+  ))
+}
+
 fn resolve_project_workspace_path(
   worktrees_root: &Path,
   project_id: &str,
@@ -234,11 +272,12 @@ pub fn get_task_working_dir(
   if !task_copy_path.exists() {
     std::fs::create_dir_all(&task_copy_path)
       .map_err(|e| format!("Failed to create task workspace directory: {e}"))?;
-    return Ok(Some(task_copy_path.to_string_lossy().to_string()));
   }
 
-  if let Some(path) = project_path {
-    let source_name = Path::new(&path)
+  let mut resolved_workspace_path = task_copy_path.clone();
+
+  if let Some(path) = project_path.as_deref() {
+    let source_name = Path::new(path)
       .file_name()
       .map(|name| name.to_string_lossy().to_string());
 
@@ -254,13 +293,26 @@ pub fn get_task_working_dir(
         let second = entries.next();
 
         if first.as_deref() == Some(source_name.as_str()) && second.is_none() {
-          return Ok(Some(legacy_path.to_string_lossy().to_string()));
+          resolved_workspace_path = legacy_path;
         }
       }
     }
+
+    let source_path = PathBuf::from(path);
+    if !source_path.exists() || !source_path.is_dir() {
+      return Err(format!(
+        "Source path does not exist or is not a directory: {}",
+        source_path.display()
+      ));
+    }
+
+    std::fs::create_dir_all(&resolved_workspace_path)
+      .map_err(|e| format!("Failed to prepare task workspace directory: {e}"))?;
+
+    rsync_project_to_workspace(&source_path, &resolved_workspace_path)?;
   }
 
-  Ok(Some(task_copy_path.to_string_lossy().to_string()))
+  Ok(Some(resolved_workspace_path.to_string_lossy().to_string()))
 }
 
 #[derive(Debug, Clone, Serialize)]

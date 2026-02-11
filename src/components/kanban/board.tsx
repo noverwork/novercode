@@ -323,15 +323,22 @@ export function Board() {
       <div className="flex-1 overflow-hidden relative">
         {selectedTaskId ? (
           <>
-            {viewMode === 'terminal' ? (
+            <div className="absolute inset-0">
               <TerminalPanel
                 taskId={selectedTaskId}
                 workingDir={workingDir || undefined}
                 isTaskReady={isWorktreeReady}
               />
-            ) : (
-              <DiffView workingDir={workingDir || undefined} />
-            )}
+            </div>
+            <div
+              className={`absolute inset-0 transition-opacity duration-150 ${
+                viewMode === 'diff'
+                  ? 'opacity-100 pointer-events-auto'
+                  : 'opacity-0 pointer-events-none'
+              }`}
+            >
+              <DiffView workingDir={workingDir || undefined} active={viewMode === 'diff'} />
+            </div>
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-[rgba(255,255,255,0.4)] font-mono">

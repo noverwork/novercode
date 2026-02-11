@@ -10,13 +10,14 @@ import {
   Loader2,
   RefreshCw,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface DiffViewProps {
   workingDir?: string;
+  active?: boolean;
 }
 
 interface ChangedFile {
@@ -186,13 +187,29 @@ function TreeItem({
   );
 }
 
-export function DiffView({ workingDir }: DiffViewProps) {
+export function DiffView({ workingDir, active = false }: DiffViewProps) {
   const [files, setFiles] = useState<ChangedFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileDiff, setFileDiff] = useState<FileDiff | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingDiff, setIsLoadingDiff] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set());
+
+  const statusSummary = useMemo(() => {
+    return files.reduce(
+      (acc, file) => {
+        if (file.status === '??' || file.status.includes('A')) {
+          acc.added += 1;
+        } else if (file.status.includes('D')) {
+          acc.deleted += 1;
+        } else {
+          acc.modified += 1;
+        }
+        return acc;
+      },
+      { added: 0, modified: 0, deleted: 0 }
+    );
+  }, [files]);
 
   const toggleFolder = useCallback((path: string) => {
     setExpandedFolders((prev) => {
@@ -221,6 +238,8 @@ export function DiffView({ workingDir }: DiffViewProps) {
   const fetchFiles = useCallback(async () => {
     if (!workingDir) {
       setFiles([]);
+      setSelectedFile(null);
+      setFileDiff(null);
       return;
     }
 
@@ -229,16 +248,20 @@ export function DiffView({ workingDir }: DiffViewProps) {
       const result = await invoke<ChangedFile[]>('get_changed_files', { path: workingDir });
       setFiles(result);
       expandAllFolders(result);
-      // 只有在沒有選擇檔案時才自動選擇第一個
       setSelectedFile((prev) => {
-        if (!prev && result.length > 0) {
-          return result[0].path;
+        if (result.length === 0) {
+          return null;
         }
-        return prev;
+        if (prev && result.some((file) => file.path === prev)) {
+          return prev;
+        }
+        return result[0].path;
       });
     } catch (e) {
       console.error('Failed to get changed files:', e);
       setFiles([]);
+      setSelectedFile(null);
+      setFileDiff(null);
     } finally {
       setIsLoading(false);
     }
@@ -266,21 +289,32 @@ export function DiffView({ workingDir }: DiffViewProps) {
   }, [workingDir, selectedFile]);
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
     fetchFiles();
-  }, [fetchFiles]);
+  }, [active, fetchFiles]);
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
     fetchFileDiff();
-  }, [fetchFileDiff]);
+  }, [active, fetchFileDiff]);
 
   return (
     <div className="h-full flex bg-[#0a0a0a]">
       {/* File List */}
       <div className="w-56 border-r border-[rgba(255,255,255,0.15)] flex flex-col">
         <div className="h-9 px-3 border-b border-[rgba(255,255,255,0.15)] flex items-center justify-between">
-          <span className="text-xs text-[rgba(255,255,255,0.6)] font-[Helvetica_Neue,Arial,sans-serif] uppercase tracking-[0.2em]">
-            changed files
-          </span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xs text-[rgba(255,255,255,0.6)] font-[Helvetica_Neue,Arial,sans-serif] uppercase tracking-[0.2em]">
+              changed files
+            </span>
+            <span className="text-[10px] font-mono text-[rgba(255,255,255,0.35)]">
+              {files.length}
+            </span>
+          </div>
           <Button
             variant="ghost"
             size="icon"
@@ -294,6 +328,11 @@ export function DiffView({ workingDir }: DiffViewProps) {
               <RefreshCw className="h-3 w-3" />
             )}
           </Button>
+        </div>
+        <div className="h-7 px-3 border-b border-[rgba(255,255,255,0.08)] flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em]">
+          <span className="text-[#00FF00]">A {statusSummary.added}</span>
+          <span className="text-[rgba(255,255,255,0.65)]">M {statusSummary.modified}</span>
+          <span className="text-[#ff6b6b]">D {statusSummary.deleted}</span>
         </div>
         <ScrollArea className="flex-1">
           <div className="py-1">
