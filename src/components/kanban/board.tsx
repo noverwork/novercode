@@ -266,8 +266,7 @@ export function Board() {
             selectedTask={selectedTask}
             projects={projects}
             tasks={currentTasks}
-            currentProjectId={currentProjectId}
-            onProjectSelect={setCurrentProjectId}
+            onProjectSelect={(id) => setCurrentProjectId(id)}
             onTaskSelect={handleSelectTask}
             onDeleteProject={handleDeleteProject}
             onDeleteTask={handleDeleteTask}
