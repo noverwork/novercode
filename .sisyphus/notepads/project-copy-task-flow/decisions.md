@@ -33,3 +33,8 @@
 
 - Updated backend error message in src-tauri/src/worktree.rs from "Failed to create worktrees dir:" to "Failed to create task workspace directory:" to align with the new mental model of "Task Copy" or "Task Workspace" instead of Git "worktree".
 - Verified that src/components/kanban/board.tsx already uses "task workspace" in its console.error message (line 157).
+
+## 2026-02-11 (task 3 follow-up)
+
+- Added explicit `spawn_failed` failure-event emission for `copy_task` so frontend always receives a terminal `copy-progress` event with `status: failed`, even when the blocking copy worker cannot complete.
+- On `spawn_failed`, backend now attempts destination cleanup before returning `Err(CopyTaskError)`, preventing silent partial workspace leftovers from thread-panic/join-failure paths.

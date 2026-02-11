@@ -426,6 +426,7 @@ pub async fn copy_task(
   let task_id_clone = task_id.clone();
   let project_id_clone = project_id.clone();
   let dest_path_clone = dest_path.clone();
+  let app_for_join_error = app.clone();
 
   async_runtime::spawn_blocking(move || {
     let total_files = count_files(&source_path).map_err(|e| {
@@ -527,7 +528,7 @@ pub async fn copy_task(
   })
   .await
   .map_err(|e| {
-    build_copy_task_error(
+    let mut error = build_copy_task_error(
       "spawn_failed",
       format!("Failed to spawn copy task: {e}"),
       &task_id_clone,
@@ -535,7 +536,18 @@ pub async fn copy_task(
       Some(&dest_path_clone),
       0,
       0,
-    )
+    );
+
+    if dest_path_clone.exists() {
+      if let Err(cleanup_error) = std::fs::remove_dir_all(&dest_path_clone) {
+        error.message.push_str(&format!(
+          "; failed to cleanup partial copy after spawn failure: {cleanup_error}"
+        ));
+      }
+    }
+
+    emit_copy_failure_event(&app_for_join_error, &dest_path_clone, error.clone());
+    error
   })?
 }
 
