@@ -243,6 +243,14 @@ fn extract_grid(term: &Term<TauriEventListener>, id: &str) -> TerminalGrid {
   }
 }
 
+// ============ Helper Functions ============
+
+/// Build pure startup arguments for terminal creation
+/// Returns plain shell login args without any command execution
+pub fn build_startup_args(_shell: &str) -> Vec<String> {
+  vec!["-l".into()]
+}
+
 // ============ Tauri Commands ============
 
 #[tauri::command]
@@ -329,24 +337,17 @@ pub async fn terminal_create(
   let term = Term::new(term_config, &term_size, event_listener);
   let term = Arc::new(FairMutex::new(term));
 
-  // PTY options - use the resolved claude command
+  // PTY options - use pure startup args
   #[cfg(target_os = "windows")]
   let pty_config = PtyOptions {
-    shell: Some(tty::Shell::new(
-      shell,
-      vec!["-l".into(), "-c".into(), claude_cmd.into()],
-    )),
+    shell: Some(tty::Shell::new(shell.clone(), build_startup_args(&shell))),
     working_directory: cwd.map(PathBuf::from),
     env: std::collections::HashMap::new(),
     drain_on_exit: false,
-    escape_args: false,
   };
   #[cfg(not(target_os = "windows"))]
   let pty_config = PtyOptions {
-    shell: Some(tty::Shell::new(
-      shell,
-      vec!["-l".into(), "-c".into(), claude_cmd.into()],
-    )),
+    shell: Some(tty::Shell::new(shell.clone(), build_startup_args(&shell))),
     working_directory: cwd.map(PathBuf::from),
     env: std::collections::HashMap::new(),
     drain_on_exit: false,
@@ -483,9 +484,38 @@ pub fn terminal_kill(id: String) -> Result<(), String> {
       .store(false, std::sync::atomic::Ordering::Relaxed);
     let _ = session.sender.send(Msg::Shutdown);
   }
+
   Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+  use super::build_startup_args;
+
+  #[test]
+  fn starts_plain_shell_by_default() {
+    let shell = "/bin/zsh";
+    let args = build_startup_args(shell);
+
+    assert_eq!(args, vec!["-l".to_string()]);
+    assert!(!args.contains(&"-c".to_string()));
+    assert!(!args.contains(&"claude".to_string()));
+  }
+
+  #[test]
+  fn does_not_autostart_claude_even_when_path_exists() {
+    let shell = "/bin/bash";
+    let args = build_startup_args(shell);
+
+    assert_eq!(args, vec!["-l".to_string()]);
+    assert!(!args.contains(&"-c".to_string()));
+    assert!(!args.contains(&"claude".to_string()));
+
+    let zsh_args = build_startup_args("/bin/zsh");
+    assert_eq!(zsh_args, vec!["-l".to_string()]);
+    assert!(!zsh_args.contains(&"-c".to_string()));
+  }
+}
 #[tauri::command]
 pub fn terminal_scroll(id: String, lines: i32) -> Result<(), String> {
   let sessions = SESSIONS.lock();
