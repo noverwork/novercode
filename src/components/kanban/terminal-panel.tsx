@@ -119,34 +119,36 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
   );
 
   return (
-    <div className="h-full flex flex-col bg-[#0a0a0a]">
-      <div className="border-b border-[rgba(255,255,255,0.15)] flex items-center px-2 py-1 gap-1 bg-[rgba(0,0,0,0.3)]">
-        {terminals.map((term) => (
-          <div
-            key={term.id}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-sm cursor-pointer text-xs font-mono uppercase tracking-[0.15em] transition-all ${
-              activeTerminalId === term.id
-                ? 'bg-[rgba(0,255,0,0.15)] text-[#00FF00] border border-[rgba(0,255,0,0.3)]'
-                : 'text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.8)] hover:bg-[rgba(255,255,255,0.05)]'
-            }`}
-            onClick={() => setActiveTerminal(term.id)}
-          >
-            <Terminal className="h-3 w-3" />
-            <span>{term.name}</span>
-            {terminals.length > 1 && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCloseTerminal(term.id);
-                }}
-                className="ml-1 hover:bg-[rgba(255,0,0,0.3)] rounded p-0.5"
-              >
-                <X className="h-2.5 w-2.5" />
-              </button>
-            )}
-          </div>
-        ))}
+    <div className="h-full flex bg-[#0a0a0a]">
+      <div className="w-48 border-r border-[rgba(255,255,255,0.15)] flex flex-col py-2 bg-[rgba(0,0,0,0.3)]">
+        <div className="flex-1 space-y-1 overflow-auto px-2">
+          {terminals.map((term) => (
+            <div
+              key={term.id}
+              className={`flex items-center gap-2 px-3 py-2 rounded-sm cursor-pointer text-xs font-mono uppercase tracking-[0.15em] transition-all ${
+                activeTerminalId === term.id
+                  ? 'bg-[rgba(0,255,0,0.15)] text-[#00FF00] border border-[rgba(0,255,0,0.3)]'
+                  : 'text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.8)] hover:bg-[rgba(255,255,255,0.05)]'
+              }`}
+              onClick={() => setActiveTerminal(term.id)}
+            >
+              <Terminal className="h-3 w-3 shrink-0" />
+              <span className="truncate flex-1">{term.name}</span>
+              {terminals.length > 1 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCloseTerminal(term.id);
+                  }}
+                  className="ml-1 hover:bg-[rgba(255,0,0,0.3)] rounded p-0.5 shrink-0"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
         <button
           type="button"
           onClick={handleAddTerminal}
