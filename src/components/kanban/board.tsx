@@ -1,13 +1,18 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { FileDiff, Terminal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { AddProjectDialog } from '@/components/kanban/add-project-dialog';
 import { AddTaskDialog } from '@/components/kanban/add-task-dialog';
+import { DiffView } from '@/components/kanban/diff-view';
 import { ProgressDialog } from '@/components/kanban/progress-dialog';
 import { TerminalPanel } from '@/components/kanban/terminal-panel';
+import { Button } from '@/components/ui/button';
 import { useKanban } from '@/hooks/use-kanban';
+
+type ViewMode = 'terminal' | 'diff';
 
 type WorktreeState =
   | { status: 'idle' }
@@ -60,6 +65,7 @@ export function Board() {
     deleteTask,
   } = useKanban();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('terminal');
   const [worktree, setWorktree] = useState<WorktreeState>({ status: 'idle' });
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [addProjectOpen, setAddProjectOpen] = useState(false);
@@ -133,7 +139,6 @@ export function Board() {
         const path = await invoke<string | null>('get_task_working_dir', {
           taskId: id,
           projectId: project.id,
-          projectPath: project.path,
         });
 
         if (selectionRequestRef.current === requestId) {
@@ -244,6 +249,17 @@ export function Board() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+        e.preventDefault();
+        setViewMode((prev) => (prev === 'terminal' ? 'diff' : 'terminal'));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a]">
       <div className="scanlines" />
@@ -270,15 +286,52 @@ export function Board() {
           onAddProject={() => setAddProjectOpen(true)}
           onAddTask={() => setAddTaskOpen(true)}
         />
+        <div className="flex-1" />
+        {selectedTask && (
+          <div className="pr-4 flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setViewMode('terminal')}
+              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider transition-colors ${
+                viewMode === 'terminal'
+                  ? 'bg-[rgba(255,255,255,0.1)] text-[#00FF00]'
+                  : 'text-[rgba(255,255,255,0.4)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)]'
+              }`}
+            >
+              <Terminal className="h-3 w-3 mr-1" />
+              terminal
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setViewMode('diff')}
+              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider transition-colors ${
+                viewMode === 'diff'
+                  ? 'bg-[rgba(255,255,255,0.1)] text-[#00FF00]'
+                  : 'text-[rgba(255,255,255,0.4)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)]'
+              }`}
+            >
+              <FileDiff className="h-3 w-3 mr-1" />
+              diff
+            </Button>
+          </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-hidden relative">
         {selectedTaskId ? (
-          <TerminalPanel
-            taskId={selectedTaskId}
-            workingDir={workingDir || undefined}
-            isTaskReady={isWorktreeReady}
-          />
+          <>
+            {viewMode === 'terminal' ? (
+              <TerminalPanel
+                taskId={selectedTaskId}
+                workingDir={workingDir || undefined}
+                isTaskReady={isWorktreeReady}
+              />
+            ) : (
+              <DiffView workingDir={workingDir || undefined} />
+            )}
+          </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-[rgba(255,255,255,0.4)] font-mono">
             <p>{currentProjectId ? 'select a task to start' : 'select a project'}</p>

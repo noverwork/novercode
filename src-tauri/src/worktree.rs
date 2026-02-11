@@ -221,22 +221,16 @@ pub fn remove_worktree(
   remove_task_copy(&app, &task_id, &project_id, project_path.as_deref())
 }
 
-/// 取得 task 的工作目錄（task copy 或 legacy project 路徑）
+/// 取得 task 的工作目錄
 #[tauri::command]
 pub fn get_task_working_dir(
   app: AppHandle,
   task_id: String,
   project_id: String,
-  project_path: Option<String>,
+  _project_path: Option<String>,
 ) -> Result<Option<String>, String> {
-  // Prefer task copy path first
   let task_copy_path = get_task_workspace_path(&app, &project_id, &task_id)?;
-  if task_copy_path.exists() {
-    return Ok(Some(task_copy_path.to_string_lossy().to_string()));
-  }
-
-  // Legacy fallback: older tasks may not have a copied workspace yet
-  Ok(project_path)
+  Ok(Some(task_copy_path.to_string_lossy().to_string()))
 }
 
 #[derive(Debug, Clone, Serialize)]
