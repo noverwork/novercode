@@ -3,7 +3,6 @@ import { listen } from '@tauri-apps/api/event';
 import { FolderPlus, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { ActivityBar } from '@/components/activity-bar';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { AddProjectDialog } from '@/components/kanban/add-project-dialog';
 import { AddTaskDialog } from '@/components/kanban/add-task-dialog';
@@ -270,23 +269,13 @@ export function Board() {
             currentProjectId={currentProjectId}
             onProjectSelect={setCurrentProjectId}
             onTaskSelect={handleSelectTask}
+            onDeleteProject={handleDeleteProject}
+            onDeleteTask={handleDeleteTask}
           />
         )}
       </header>
 
       <div className="flex-1 flex overflow-hidden relative">
-        <ActivityBar
-          projects={projects}
-          tasks={allTasks}
-          currentProjectId={currentProjectId}
-          currentProject={currentProject}
-          selectedTaskId={selectedTaskId}
-          onProjectSelect={setCurrentProjectId}
-          onTaskSelect={handleSelectTask}
-          onDeleteProject={handleDeleteProject}
-          onDeleteTask={handleDeleteTask}
-        />
-
         <div className="flex-1 flex relative">
           {selectedTaskId ? (
             <div className="flex-1 flex overflow-hidden">
