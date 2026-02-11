@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 type CopyProgressStatus = 'in_progress' | 'completed' | 'failed';
+type DeleteProgressStatus = 'in_progress' | 'completed' | 'failed';
 
 type CopyTaskError = {
   code: string;
@@ -10,6 +11,13 @@ type CopyTaskError = {
   task_path: string | null;
   copied_files: number;
   total_files: number;
+};
+
+type DeleteTaskError = {
+  code: string;
+  message: string;
+  task_id: string;
+  project_id: string;
 };
 
 interface CopyProgressData {
@@ -23,19 +31,30 @@ interface CopyProgressData {
   error: CopyTaskError | null;
 }
 
+interface DeleteProgressData {
+  task_id: string;
+  project_id: string;
+  progress: number;
+  status: DeleteProgressStatus;
+  error: DeleteTaskError | null;
+}
+
 interface ProgressDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  progress?: CopyProgressData;
+  progress?: CopyProgressData | DeleteProgressData;
+  operation?: 'copy' | 'delete';
 }
 
-export function ProgressDialog({ open, onOpenChange, progress }: ProgressDialogProps) {
+export function ProgressDialog({ open, onOpenChange, progress, operation }: ProgressDialogProps) {
+  const isDelete = operation === 'delete';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-[#0a0a0a] border-[rgba(255,255,255,0.15)] text-[#FFFFFF] sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-mono uppercase tracking-[0.1em] text-lg">
-            Copying Project
+            {isDelete ? 'Deleting Task' : 'Copying Project'}
           </DialogTitle>
         </DialogHeader>
 
@@ -51,7 +70,11 @@ export function ProgressDialog({ open, onOpenChange, progress }: ProgressDialogP
                 <>
                   <div className="font-mono text-sm text-[rgba(255,255,255,0.7)]">
                     <span className="text-[rgba(255,255,255,0.5)]">Status:</span>{' '}
-                    {progress.status === 'completed' ? 'Completed' : 'Copying...'}
+                    {progress.status === 'completed'
+                      ? 'Completed'
+                      : isDelete
+                        ? 'Deleting...'
+                        : 'Copying...'}
                   </div>
 
                   <div className="space-y-2">
@@ -62,23 +85,31 @@ export function ProgressDialog({ open, onOpenChange, progress }: ProgressDialogP
                     <div className="h-2 bg-[rgba(255,255,255,0.1)] rounded-full overflow-hidden">
                       <div
                         className={`h-full transition-all duration-300 ${
-                          progress.status === 'completed' ? 'bg-green-500' : 'bg-[#00FF00]'
+                          progress.status === 'completed'
+                            ? 'bg-green-500'
+                            : isDelete
+                              ? 'bg-red-500'
+                              : 'bg-[#00FF00]'
                         }`}
                         style={{
                           width: `${progress.progress}%`,
                           boxShadow:
                             progress.status === 'completed'
                               ? 'none'
-                              : '0 0 10px rgba(0, 255, 0, 0.5)',
+                              : isDelete
+                                ? '0 0 10px rgba(239, 68, 68, 0.5)'
+                                : '0 0 10px rgba(0, 255, 0, 0.5)',
                         }}
                       />
                     </div>
                   </div>
 
-                  <div className="font-mono text-xs text-[rgba(255,255,255,0.5)]">
-                    <span className="text-[rgba(255,255,255,0.5)]">Files:</span>{' '}
-                    {progress.copied_files} / {progress.total_files}
-                  </div>
+                  {!isDelete && 'copied_files' in progress && (
+                    <div className="font-mono text-xs text-[rgba(255,255,255,0.5)]">
+                      <span className="text-[rgba(255,255,255,0.5)]">Files:</span>{' '}
+                      {progress.copied_files} / {progress.total_files}
+                    </div>
+                  )}
                 </>
               )}
             </>
@@ -86,8 +117,12 @@ export function ProgressDialog({ open, onOpenChange, progress }: ProgressDialogP
 
           {!progress && (
             <div className="flex items-center justify-center py-8 text-[rgba(255,255,255,0.5)] font-mono">
-              <div className="h-6 w-6 border-2 border-[#00FF00] border-t-transparent rounded-full animate-spin mr-3" />
-              <span>Starting copy...</span>
+              <div
+                className={`h-6 w-6 border-2 border-t-transparent rounded-full animate-spin mr-3 ${
+                  isDelete ? 'border-red-500' : 'border-[#00FF00]'
+                }`}
+              />
+              <span>{isDelete ? 'Starting delete...' : 'Starting copy...'}</span>
             </div>
           )}
         </div>

@@ -224,6 +224,66 @@ pub fn remove_task_copy(
     return Ok(());
   }
 
+  emit_delete_progress_event(
+    app,
+    DeleteProgressEvent {
+      task_id: task_id.to_string(),
+      project_id: project_id.to_string(),
+      progress: 0,
+      status: DeleteProgressStatus::InProgress,
+      error: None,
+    },
+  );
+
+  if let Some(path) = project_path {
+    if is_git_repo(path) {
+      let _ = Command::new("git")
+        .current_dir(path)
+        .args([
+          "worktree",
+          "remove",
+          "--force",
+          worktree_path.to_string_lossy().as_ref(),
+        ])
+        .output();
+    }
+  }
+
+  emit_delete_progress_event(
+    app,
+    DeleteProgressEvent {
+      task_id: task_id.to_string(),
+      project_id: project_id.to_string(),
+      progress: 50,
+      status: DeleteProgressStatus::InProgress,
+      error: None,
+    },
+  );
+
+  if worktree_path.exists() {
+    std::fs::remove_dir_all(&worktree_path).map_err(|e| {
+      let error = DeleteTaskError {
+        code: "remove_dir_failed".to_string(),
+        message: format!("Failed to remove task copy for {task_id}: {e}"),
+        task_id: task_id.to_string(),
+        project_id: project_id.to_string(),
+      };
+      emit_delete_failure_event(app, error.clone());
+      error.message
+    })?;
+  }
+
+  emit_delete_progress_event(
+    app,
+    DeleteProgressEvent {
+      task_id: task_id.to_string(),
+      project_id: project_id.to_string(),
+      progress: 100,
+      status: DeleteProgressStatus::Completed,
+      error: None,
+    },
+  );
+
   // 如果有 project_path 且是 git repo，用 git worktree remove
   if let Some(path) = project_path {
     if is_git_repo(path) {
@@ -239,11 +299,43 @@ pub fn remove_task_copy(
     }
   }
 
+  // 進度 50% - 正在刪除資料夾
+  emit_delete_progress_event(
+    app,
+    DeleteProgressEvent {
+      task_id: task_id.to_string(),
+      project_id: project_id.to_string(),
+      progress: 50,
+      status: DeleteProgressStatus::InProgress,
+      error: None,
+    },
+  );
+
   // 確保目錄被刪除
   if worktree_path.exists() {
-    std::fs::remove_dir_all(&worktree_path)
-      .map_err(|e| format!("Failed to remove task copy for {task_id}: {e}"))?;
+    std::fs::remove_dir_all(&worktree_path).map_err(|e| {
+      let error = DeleteTaskError {
+        code: "remove_dir_failed".to_string(),
+        message: format!("Failed to remove task copy for {task_id}: {e}"),
+        task_id: task_id.to_string(),
+        project_id: project_id.to_string(),
+      };
+      emit_delete_failure_event(app, error.clone());
+      error.message
+    })?;
   }
+
+  // 完成 - 進度 100%
+  emit_delete_progress_event(
+    app,
+    DeleteProgressEvent {
+      task_id: task_id.to_string(),
+      project_id: project_id.to_string(),
+      progress: 100,
+      status: DeleteProgressStatus::Completed,
+      error: None,
+    },
+  );
 
   Ok(())
 }
@@ -324,6 +416,14 @@ enum CopyProgressStatus {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum DeleteProgressStatus {
+  InProgress,
+  Completed,
+  Failed,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct CopyTaskError {
   code: String,
   message: String,
@@ -332,6 +432,14 @@ pub struct CopyTaskError {
   task_path: Option<String>,
   copied_files: usize,
   total_files: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeleteTaskError {
+  code: String,
+  message: String,
+  task_id: String,
+  project_id: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -344,6 +452,15 @@ struct CopyProgressEvent {
   status: CopyProgressStatus,
   task_path: String,
   error: Option<CopyTaskError>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DeleteProgressEvent {
+  task_id: String,
+  project_id: String,
+  progress: u32,
+  status: DeleteProgressStatus,
+  error: Option<DeleteTaskError>,
 }
 
 fn build_copy_task_error(
@@ -387,6 +504,23 @@ fn emit_copy_failure_event(app: &AppHandle, task_path: &Path, error: CopyTaskErr
       total_files: error.total_files,
       status: CopyProgressStatus::Failed,
       task_path: task_path.to_string_lossy().to_string(),
+      error: Some(error),
+    },
+  );
+}
+
+fn emit_delete_progress_event(app: &AppHandle, event: DeleteProgressEvent) {
+  let _ = app.emit("delete-progress", event);
+}
+
+fn emit_delete_failure_event(app: &AppHandle, error: DeleteTaskError) {
+  emit_delete_progress_event(
+    app,
+    DeleteProgressEvent {
+      task_id: error.task_id.clone(),
+      project_id: error.project_id.clone(),
+      progress: 0,
+      status: DeleteProgressStatus::Failed,
       error: Some(error),
     },
   );

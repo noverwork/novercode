@@ -21,6 +21,8 @@ type WorktreeState =
 
 type CopyProgressStatus = 'in_progress' | 'completed' | 'failed';
 
+type DeleteProgressStatus = 'in_progress' | 'completed' | 'failed';
+
 type CopyTaskError = {
   code: string;
   message: string;
@@ -29,6 +31,13 @@ type CopyTaskError = {
   task_path: string | null;
   copied_files: number;
   total_files: number;
+};
+
+type DeleteTaskError = {
+  code: string;
+  message: string;
+  task_id: string;
+  project_id: string;
 };
 
 type CopyProgressData = {
@@ -40,6 +49,14 @@ type CopyProgressData = {
   status: CopyProgressStatus;
   task_path: string;
   error: CopyTaskError | null;
+};
+
+type DeleteProgressData = {
+  task_id: string;
+  project_id: string;
+  progress: number;
+  status: DeleteProgressStatus;
+  error: DeleteTaskError | null;
 };
 
 async function killTerminal(terminalId: string) {
@@ -71,6 +88,7 @@ export function Board() {
   const [addProjectOpen, setAddProjectOpen] = useState(false);
   const [progressDialogOpen, setProgressDialogOpen] = useState(false);
   const [copyProgress, setCopyProgress] = useState<CopyProgressData | undefined>(undefined);
+  const [deleteProgress, setDeleteProgress] = useState<DeleteProgressData | undefined>(undefined);
   const selectionRequestRef = useRef(0);
 
   const workingDir = useMemo(() => {
@@ -165,6 +183,9 @@ export function Board() {
 
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
+      setDeleteProgress(undefined);
+      setProgressDialogOpen(true);
+
       try {
         await deleteTask(taskId);
         if (selectedTaskId === taskId) {
@@ -176,6 +197,7 @@ export function Board() {
         const message =
           typeof e === 'string' ? e : e instanceof Error ? e.message : JSON.stringify(e);
         window.alert(`Task delete failed: ${message}`);
+        setProgressDialogOpen(false);
       }
     },
     [deleteTask, selectedTaskId]
@@ -221,12 +243,13 @@ export function Board() {
   );
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
+    let unlistenCopy: (() => void) | undefined;
+    let unlistenDelete: (() => void) | undefined;
     let progressTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    const setupListener = async () => {
+    const setupListeners = async () => {
       try {
-        unlisten = await listen<CopyProgressData>('copy-progress', (event) => {
+        unlistenCopy = await listen<CopyProgressData>('copy-progress', (event) => {
           const progress = event.payload;
           setCopyProgress(progress);
 
@@ -237,16 +260,29 @@ export function Board() {
             }, 500);
           }
         });
+
+        unlistenDelete = await listen<DeleteProgressData>('delete-progress', (event) => {
+          const progress = event.payload;
+          setDeleteProgress(progress);
+
+          if (progress.status === 'completed' || progress.status === 'failed') {
+            if (progressTimeout) clearTimeout(progressTimeout);
+            progressTimeout = setTimeout(() => {
+              setProgressDialogOpen(false);
+            }, 500);
+          }
+        });
       } catch (error) {
-        console.error('Failed to listen to copy-progress:', error);
+        console.error('Failed to listen to progress events:', error);
       }
     };
 
-    setupListener();
+    setupListeners();
 
     return () => {
       if (progressTimeout) clearTimeout(progressTimeout);
-      unlisten?.();
+      unlistenCopy?.();
+      unlistenDelete?.();
     };
   }, []);
 
@@ -361,7 +397,8 @@ export function Board() {
       <ProgressDialog
         open={progressDialogOpen}
         onOpenChange={setProgressDialogOpen}
-        progress={copyProgress}
+        progress={deleteProgress || copyProgress}
+        operation={deleteProgress ? 'delete' : 'copy'}
       />
     </div>
   );
