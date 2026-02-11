@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { Plus, Terminal, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { CanvasTerminal } from './canvas-terminal';
 
@@ -17,6 +17,17 @@ interface TerminalPanelProps {
 export function TerminalPanel({ taskId, workingDir }: TerminalPanelProps) {
   const [terminals, setTerminals] = useState<TerminalInfo[]>([]);
   const [activeTerminalId, setActiveTerminalId] = useState<string | null>(null);
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (taskId && !initializedRef.current) {
+      initializedRef.current = true;
+      const initialId = crypto.randomUUID();
+      setTerminals([{ id: initialId, name: 'Terminal 1' }]);
+      setActiveTerminalId(initialId);
+    }
+  }, [taskId]);
 
   const handleAddTerminal = useCallback(() => {
     if (taskId && terminals.length === 0) {
