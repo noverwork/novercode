@@ -1,0 +1,2 @@
+    Checking novercode v1.0.1 (/Volumes/Data/noverwork/repos/novercode/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.86s

@@ -1,0 +1,1 @@
+Search for '-c' and claude_cmd pattern in terminal.rs:

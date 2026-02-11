@@ -1,18 +1,9 @@
 {
-  "active_plan": "/Volumes/Data/noverwork/repos/novercode/.sisyphus/plans/project-copy-task-flow.md",
-  "started_at": "2026-02-11T05:24:33.004Z",
+  "active_plan": "/Volumes/Data/noverwork/repos/novercode/.sisyphus/plans/terminal-default-shell-startup.md",
+  "started_at": "2026-02-11T09:11:58.317Z",
   "session_ids": [
-    "ses_3b558ff54ffeAZS4gJnHw90p6k",
-    "ses_3b4d64687ffe41R1Hvq84BzqZV",
-    "ses_3b4d64683ffezWseBrMCj0ecKX",
-    "ses_3b4cf35aaffe0dGvfW1Lom2XPw",
-    "ses_3b4cf35a1ffetERh5IabtGvIj4",
-    "ses_3b4c82d68ffeL5w57ShNBpBbIn",
-    "ses_3b4c7cf37ffeUbQP3lO3Te2nCe",
-    "ses_3b4c7cf38ffeotgXnxW7JwPIkk",
-    "ses_3b4bfedecffeya2jHKY5KapaVl",
-    "ses_3b43d34f8ffeA26XyHi7hFf38Y"
+    "ses_3b40743c0ffemvEUv2uYZzsEbJ"
   ],
-  "plan_name": "project-copy-task-flow",
+  "plan_name": "terminal-default-shell-startup",
   "agent": "atlas"
 }

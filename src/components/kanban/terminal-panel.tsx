@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { Plus, Terminal, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { CanvasTerminal } from './canvas-terminal';
 
@@ -9,62 +9,114 @@ interface TerminalInfo {
   name: string;
 }
 
+interface TaskTerminalState {
+  terminals: TerminalInfo[];
+  activeTerminalId: string | null;
+}
+
 interface TerminalPanelProps {
   taskId: string;
   workingDir?: string;
+  isTaskReady: boolean;
 }
 
-export function TerminalPanel({ taskId, workingDir }: TerminalPanelProps) {
-  const [terminals, setTerminals] = useState<TerminalInfo[]>([]);
-  const [activeTerminalId, setActiveTerminalId] = useState<string | null>(null);
-  const initializedRef = useRef(false);
+const EMPTY_STATE: TaskTerminalState = {
+  terminals: [],
+  activeTerminalId: null,
+};
+
+export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanelProps) {
+  const [taskTerminals, setTaskTerminals] = useState<Record<string, TaskTerminalState>>({});
+  const currentState = taskTerminals[taskId] ?? EMPTY_STATE;
+  const terminals = currentState.terminals;
+  const activeTerminalId = currentState.activeTerminalId;
+  const hasTerminals = terminals.length > 0;
 
   useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
-    if (taskId && !initializedRef.current) {
-      initializedRef.current = true;
-      const initialId = crypto.randomUUID();
-      setTerminals([{ id: initialId, name: 'Terminal 1' }]);
-      setActiveTerminalId(initialId);
+    if (!isTaskReady || hasTerminals) {
+      return;
     }
-  }, [taskId]);
+
+    const timer = window.setTimeout(() => {
+      setTaskTerminals((prev) => {
+        const existing = prev[taskId];
+        if (existing && existing.terminals.length > 0) {
+          return prev;
+        }
+
+        const initialId = crypto.randomUUID();
+        return {
+          ...prev,
+          [taskId]: {
+            terminals: [{ id: initialId, name: 'Terminal 1' }],
+            activeTerminalId: initialId,
+          },
+        };
+      });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [hasTerminals, isTaskReady, taskId]);
+
+  const setActiveTerminal = useCallback(
+    (terminalId: string) => {
+      setTaskTerminals((prev) => {
+        const current = prev[taskId] ?? EMPTY_STATE;
+        return {
+          ...prev,
+          [taskId]: {
+            terminals: current.terminals,
+            activeTerminalId: terminalId,
+          },
+        };
+      });
+    },
+    [taskId]
+  );
 
   const handleAddTerminal = useCallback(() => {
-    if (taskId && terminals.length === 0) {
-      const initialId = crypto.randomUUID();
-      setTerminals([{ id: initialId, name: 'Terminal 1' }]);
-      setActiveTerminalId(initialId);
-    } else {
+    setTaskTerminals((prev) => {
+      const current = prev[taskId] ?? EMPTY_STATE;
       const newId = crypto.randomUUID();
-      const newName = `Terminal ${terminals.length + 1}`;
-      setTerminals([...terminals, { id: newId, name: newName }]);
-      setActiveTerminalId(newId);
-    }
-  }, [taskId, terminals]);
+      const newName = `Terminal ${current.terminals.length + 1}`;
+      return {
+        ...prev,
+        [taskId]: {
+          terminals: [...current.terminals, { id: newId, name: newName }],
+          activeTerminalId: newId,
+        },
+      };
+    });
+  }, [taskId]);
 
   const handleCloseTerminal = useCallback(
     (id: string) => {
       invoke('terminal_kill', { id }).catch(console.error);
-      setTerminals((prev) => {
-        const remaining = prev.filter((t) => t.id !== id);
-        if (activeTerminalId === id) {
-          setActiveTerminalId(remaining.length > 0 ? remaining[0].id : null);
-        }
-        return remaining;
+
+      setTaskTerminals((prev) => {
+        const current = prev[taskId] ?? EMPTY_STATE;
+        const remaining = current.terminals.filter((t) => t.id !== id);
+        const nextActiveTerminalId =
+          current.activeTerminalId === id ? (remaining[0]?.id ?? null) : current.activeTerminalId;
+
+        return {
+          ...prev,
+          [taskId]: {
+            terminals: remaining,
+            activeTerminalId: nextActiveTerminalId,
+          },
+        };
       });
     },
-    [activeTerminalId]
+    [taskId]
   );
 
-  useEffect(() => {
-    return () => {
-      terminals.forEach((term) => {
-        invoke('terminal_kill', { id: term.id }).catch(console.error);
-      });
-    };
-  }, [terminals]);
-
-  const activeTerminal = terminals.find((t) => t.id === activeTerminalId);
+  const activeTerminal = useMemo(
+    () => terminals.find((t) => t.id === activeTerminalId) ?? null,
+    [activeTerminalId, terminals]
+  );
 
   return (
     <div className="h-full flex flex-col bg-[#0a0a0a]">
@@ -77,7 +129,7 @@ export function TerminalPanel({ taskId, workingDir }: TerminalPanelProps) {
                 ? 'bg-[rgba(0,255,0,0.15)] text-[#00FF00] border border-[rgba(0,255,0,0.3)]'
                 : 'text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.8)] hover:bg-[rgba(255,255,255,0.05)]'
             }`}
-            onClick={() => setActiveTerminalId(term.id)}
+            onClick={() => setActiveTerminal(term.id)}
           >
             <Terminal className="h-3 w-3" />
             <span>{term.name}</span>

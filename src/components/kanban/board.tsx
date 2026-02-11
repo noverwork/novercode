@@ -289,19 +289,25 @@ export function Board() {
         />
 
         <div className="flex-1 flex relative">
-          {selectedTaskId && isWorktreeReady ? (
+          {selectedTaskId ? (
             <div className="flex-1 flex overflow-hidden">
               <div className="w-[60%] flex flex-col border-r border-[rgba(255,255,255,0.15)]">
-                <TerminalPanel taskId={selectedTaskId} workingDir={workingDir || undefined} />
+                <TerminalPanel
+                  taskId={selectedTaskId}
+                  workingDir={workingDir || undefined}
+                  isTaskReady={isWorktreeReady}
+                />
               </div>
               <div className="w-[40%] flex flex-col">
-                <DiffView workingDir={workingDir || undefined} />
+                {isWorktreeReady ? (
+                  <DiffView workingDir={workingDir || undefined} />
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-[rgba(255,255,255,0.5)] font-mono gap-3">
+                    <div className="h-6 w-6 border-2 border-[#00FF00] border-t-transparent rounded-full animate-spin" />
+                    <p>loading workspace...</p>
+                  </div>
+                )}
               </div>
-            </div>
-          ) : selectedTaskId && !isWorktreeReady ? (
-            <div className="flex-1 flex items-center justify-center text-[rgba(255,255,255,0.5)] font-mono gap-3">
-              <div className="h-6 w-6 border-2 border-[#00FF00] border-t-transparent rounded-full animate-spin" />
-              <p>loading workspace...</p>
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-[rgba(255,255,255,0.4)] font-mono">

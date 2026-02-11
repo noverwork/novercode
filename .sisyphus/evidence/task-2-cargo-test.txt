@@ -1,0 +1,25 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.44s
+     Running unittests src/lib.rs (src-tauri/target/debug/deps/novercode_lib-b0237e6d8316cc99)
+
+running 4 tests
+test worktree::tests::resolves_unique_task_paths_in_same_project ... ok
+test worktree::tests::rejects_paths_outside_managed_root ... ok
+test terminal::tests::does_not_autostart_claude_even_when_path_exists ... ok
+test terminal::tests::starts_plain_shell_by_default ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (src-tauri/target/debug/deps/novercode-930d28eace344fea)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests novercode_lib
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+Exit code: 0
