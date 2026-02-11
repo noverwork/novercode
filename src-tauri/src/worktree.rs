@@ -227,9 +227,39 @@ pub fn get_task_working_dir(
   app: AppHandle,
   task_id: String,
   project_id: String,
-  _project_path: Option<String>,
+  project_path: Option<String>,
 ) -> Result<Option<String>, String> {
   let task_copy_path = get_task_workspace_path(&app, &project_id, &task_id)?;
+
+  if !task_copy_path.exists() {
+    std::fs::create_dir_all(&task_copy_path)
+      .map_err(|e| format!("Failed to create task workspace directory: {e}"))?;
+    return Ok(Some(task_copy_path.to_string_lossy().to_string()));
+  }
+
+  if let Some(path) = project_path {
+    let source_name = Path::new(&path)
+      .file_name()
+      .map(|name| name.to_string_lossy().to_string());
+
+    if let Some(source_name) = source_name {
+      let legacy_path = task_copy_path.join(&source_name);
+      if legacy_path.is_dir() {
+        let mut entries = std::fs::read_dir(&task_copy_path)
+          .map_err(|e| format!("Failed to inspect task workspace directory: {e}"))?
+          .filter_map(Result::ok)
+          .map(|entry| entry.file_name().to_string_lossy().to_string());
+
+        let first = entries.next();
+        let second = entries.next();
+
+        if first.as_deref() == Some(source_name.as_str()) && second.is_none() {
+          return Ok(Some(legacy_path.to_string_lossy().to_string()));
+        }
+      }
+    }
+  }
+
   Ok(Some(task_copy_path.to_string_lossy().to_string()))
 }
 

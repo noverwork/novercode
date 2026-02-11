@@ -139,6 +139,7 @@ export function Board() {
         const path = await invoke<string | null>('get_task_working_dir', {
           taskId: id,
           projectId: project.id,
+          projectPath: project.path,
         });
 
         if (selectionRequestRef.current === requestId) {
