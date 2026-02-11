@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { Project, Task } from '@/hooks/useKanban';
 
+type OpenMenu = 'project' | 'task' | null;
+
 interface BreadcrumbsProps {
   currentProject: Project | null;
   selectedTask: Task | null;
@@ -25,63 +27,55 @@ export function Breadcrumbs({
   onDeleteProject,
   onDeleteTask,
 }: BreadcrumbsProps) {
-  const [open, setOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
+        setOpenMenu(null);
       }
     };
 
-    if (open) {
+    if (openMenu) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [open]);
+  }, [openMenu]);
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-4 py-2 hover:bg-[rgba(255,255,255,0.05)] transition-colors text-left"
-      >
-        <div className="flex items-center gap-2 text-sm font-mono">
-          {currentProject && (
-            <>
-              <span className="text-[rgba(255,255,255,0.9)]">{currentProject.name}</span>
-              <span className="text-[rgba(255,255,255,0.3)]">/</span>
-            </>
-          )}
-          {selectedTask ? (
-            <span className="text-[rgba(255,255,255,0.7)]">{selectedTask.title}</span>
-          ) : (
-            <span className="text-[rgba(255,255,255,0.4)] italic">no task selected</span>
-          )}
-        </div>
-        <ChevronDown className="h-3 w-3 text-[rgba(255,255,255,0.4)]" />
-      </button>
+    <div className="flex items-center gap-2 px-4 py-2" ref={dropdownRef}>
+      <div className="relative">
+        <button
+          onClick={() => setOpenMenu((prev) => (prev === 'project' ? null : 'project'))}
+          className="flex items-center gap-1.5 rounded px-2 py-1 text-sm font-mono text-[rgba(255,255,255,0.9)] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+        >
+          <span>{currentProject?.name ?? 'select project'}</span>
+          <ChevronDown className="h-3 w-3 text-[rgba(255,255,255,0.45)]" />
+        </button>
 
-      {open && (
-        <div className="absolute left-0 top-full mt-1 w-80 bg-[#0a0a0a] border border-[rgba(255,255,255,0.15)] z-50 p-2 max-h-64 overflow-auto">
-          {!currentProject ? (
-            <div className="space-y-1">
-              {projects.length === 0 ? (
-                <div className="text-center py-4 text-[rgba(255,255,255,0.3)] font-mono text-xs">
-                  <p>no projects found</p>
-                </div>
-              ) : (
-                projects.map((project) => (
+        {openMenu === 'project' && (
+          <div className="absolute left-0 top-full mt-1 w-80 bg-[#0a0a0a] border border-[rgba(255,255,255,0.15)] z-50 p-2 max-h-64 overflow-auto">
+            {projects.length === 0 ? (
+              <div className="text-center py-4 text-[rgba(255,255,255,0.3)] font-mono text-xs">
+                <p>no projects found</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {projects.map((project) => (
                   <div
                     key={project.id}
-                    className="group flex items-center gap-2 px-3 py-2 font-mono text-sm transition-colors text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#FFFFFF]"
+                    className={`group flex items-center gap-2 px-3 py-2 font-mono text-sm transition-colors ${
+                      currentProject?.id === project.id
+                        ? 'bg-[rgba(255,255,255,0.1)] text-[#FFFFFF]'
+                        : 'text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#FFFFFF]'
+                    }`}
                   >
                     <Folder className="h-3 w-3 shrink-0" />
                     <button
                       onClick={() => {
                         onProjectSelect(project.id);
-                        setOpen(false);
+                        setOpenMenu(null);
                       }}
                       className="truncate flex-1 text-left"
                     >
@@ -101,26 +95,38 @@ export function Breadcrumbs({
                       </Button>
                     )}
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <span className="text-[rgba(255,255,255,0.3)]">/</span>
+
+      <div className="relative">
+        <button
+          onClick={() => setOpenMenu((prev) => (prev === 'task' ? null : 'task'))}
+          className="flex items-center gap-1.5 rounded px-2 py-1 text-sm font-mono hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+          disabled={!currentProject}
+        >
+          {selectedTask ? (
+            <span className="text-[rgba(255,255,255,0.7)]">{selectedTask.title}</span>
           ) : (
-            <div className="space-y-1">
-              <button
-                onClick={() => {
-                  onProjectSelect(null);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 font-mono text-sm transition-colors text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#FFFFFF]"
-              >
-                <span className="text-[rgba(255,255,255,0.4)]">←</span>
-                <span className="truncate">Back to Projects</span>
-              </button>
-              {tasks.length === 0 ? (
-                <div className="text-center py-4 text-[rgba(255,255,255,0.3)] font-mono text-xs">
-                  <p>no tasks in this project</p>
-                </div>
-              ) : (
-                tasks.map((task) => (
+            <span className="text-[rgba(255,255,255,0.4)] italic">no task selected</span>
+          )}
+          <ChevronDown className="h-3 w-3 text-[rgba(255,255,255,0.45)]" />
+        </button>
+
+        {openMenu === 'task' && (
+          <div className="absolute left-0 top-full mt-1 w-80 bg-[#0a0a0a] border border-[rgba(255,255,255,0.15)] z-50 p-2 max-h-64 overflow-auto">
+            {tasks.length === 0 ? (
+              <div className="text-center py-4 text-[rgba(255,255,255,0.3)] font-mono text-xs">
+                <p>no tasks in this project</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {tasks.map((task) => (
                   <div
                     key={task.id}
                     className={`group flex items-start gap-2 px-3 py-2 font-mono text-sm transition-colors ${
@@ -133,7 +139,7 @@ export function Breadcrumbs({
                     <button
                       onClick={() => {
                         onTaskSelect(task.id);
-                        setOpen(false);
+                        setOpenMenu(null);
                       }}
                       className="flex-1 min-w-0 text-left"
                     >
@@ -160,12 +166,12 @@ export function Breadcrumbs({
                       </Button>
                     )}
                   </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      )}
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

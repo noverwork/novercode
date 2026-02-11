@@ -275,39 +275,35 @@ export function Board() {
       </header>
 
       <div className="flex-1 flex overflow-hidden relative">
-        <div className="flex-1 flex relative">
-          {selectedTaskId ? (
-            <div className="flex-1 flex overflow-hidden">
-              <TerminalPanel
-                taskId={selectedTaskId}
-                workingDir={workingDir || undefined}
-                isTaskReady={isWorktreeReady}
-              />
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-[rgba(255,255,255,0.4)] font-mono">
-              <p>{currentProjectId ? 'select a task to start' : 'select a project'}</p>
-            </div>
-          )}
-          <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setAddProjectOpen(true)}
-              aria-label="add project"
-              className="h-11 w-11 cursor-pointer rounded-lg border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.7)] transition-all duration-200 hover:border-[rgba(255,255,255,0.35)] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#FFFFFF]"
-            >
-              <FolderPlus className="mx-auto h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setAddTaskOpen(true)}
-              aria-label="add task"
-              disabled={!currentProjectId}
-              className="h-11 w-11 cursor-pointer rounded-lg border border-[rgba(0,255,0,0.45)] bg-[rgba(0,255,0,0.12)] text-[#00FF00] shadow-[0_0_10px_rgba(0,255,0,0.3)] transition-all duration-200 hover:bg-[rgba(0,255,0,0.2)] hover:shadow-[0_0_16px_rgba(0,255,0,0.45)] disabled:cursor-not-allowed disabled:border-[rgba(255,255,255,0.12)] disabled:bg-[rgba(255,255,255,0.06)] disabled:text-[rgba(255,255,255,0.35)] disabled:shadow-none"
-            >
-              <Plus className="mx-auto h-4 w-4" />
-            </button>
+        {selectedTaskId ? (
+          <TerminalPanel
+            taskId={selectedTaskId}
+            workingDir={workingDir || undefined}
+            isTaskReady={isWorktreeReady}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-[rgba(255,255,255,0.4)] font-mono">
+            <p>{currentProjectId ? 'select a task to start' : 'select a project'}</p>
           </div>
+        )}
+        <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setAddProjectOpen(true)}
+            aria-label="add project"
+            className="h-11 w-11 cursor-pointer rounded-lg border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.7)] transition-all duration-200 hover:border-[rgba(255,255,255,0.35)] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#FFFFFF]"
+          >
+            <FolderPlus className="mx-auto h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setAddTaskOpen(true)}
+            aria-label="add task"
+            disabled={!currentProjectId}
+            className="h-11 w-11 cursor-pointer rounded-lg border border-[rgba(0,255,0,0.45)] bg-[rgba(0,255,0,0.12)] text-[#00FF00] shadow-[0_0_10px_rgba(0,255,0,0.3)] transition-all duration-200 hover:bg-[rgba(0,255,0,0.2)] hover:shadow-[0_0_16px_rgba(0,255,0,0.45)] disabled:cursor-not-allowed disabled:border-[rgba(255,255,255,0.12)] disabled:bg-[rgba(255,255,255,0.06)] disabled:text-[rgba(255,255,255,0.35)] disabled:shadow-none"
+          >
+            <Plus className="mx-auto h-4 w-4" />
+          </button>
         </div>
       </div>
 
