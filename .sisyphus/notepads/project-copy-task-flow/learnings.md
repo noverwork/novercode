@@ -32,3 +32,10 @@
 - Task selection no longer needs to create anything: resolving working directory on demand via `get_task_working_dir` avoids accidental workspace creation calls when opening an existing task.
 - Working directory resolution should be anchored to the selected task's owning project (not just current UI project) so terminal/diff stay correct even if selection and current project can drift.
 - Legacy compatibility is preserved by returning `project_path` when deterministic task copy path does not exist.
+
+## 2026-02-11 (task 8 - smoke QA)
+
+- Smoke test provides deterministic verification of the complete task copy lifecycle without full test framework setup.
+- Script creates temporary test project with dotfiles, validates copy operation, checks dotfile inclusion, then tests atomic cleanup.
+- Evidence artifacts are timestamped and stored in `.sisyphus/evidence/` for auditability.
+- Final verification suite (`npm run check` + `cargo check`) ensures repository health after all migrations.

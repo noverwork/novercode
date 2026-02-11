@@ -23,7 +23,8 @@
     "tauri:build": "tauri build",
     "lint:all": "npm run lint && npm run lint:rust",
     "check": "npm run lint:all && npm run build",
-    "prepare": "husky"
+    "prepare": "husky",
+    "qa:task-copy-smoke": "./scripts/qa-task-copy-smoke.sh"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

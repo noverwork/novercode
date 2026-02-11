@@ -626,7 +626,7 @@ Parallel Speedup: ~30-40% over sequential
   - Files: `README.md`, `src/components/kanban/board.tsx` (text only)
   - Pre-commit: `npm run check`
 
-- [ ] 8. Add Deterministic Smoke QA Entry and Final Verification Gate
+  - [x] 8. Add Deterministic Smoke QA Entry and Final Verification Gate
 
   **What to do**:
   - Add one scripted smoke command (non-unit-test) to validate create-copy/delete-cleanup in CI/dev.
