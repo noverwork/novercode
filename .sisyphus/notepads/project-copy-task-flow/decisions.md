@@ -44,3 +44,8 @@
 - Moved task working-directory resolution into `handleSelectTask` in `board.tsx` so selecting an existing task is on-demand and does not rely on selection-time workspace creation flows.
 - Kept resolution anchored to the selected task's owning project (`allTasks -> projectId`) before invoking `get_task_working_dir`, ensuring terminal and diff open against the correct copy path.
 - Confirmed backend fallback remains intact in `get_task_working_dir`: return deterministic `worktrees/{project_id}/{task_id}` when present, otherwise fall back to `project_path` for legacy tasks.
+
+## 2026-02-11 (task 6 atomic delete follow-up)
+
+- Removed the metadata-only delete code path by making `delete_task` delegate directly to `delete_task_atomic`, so every task delete entrypoint enforces terminal kill -> workspace cleanup -> metadata persistence.
+- Kept explicit failure semantics: cleanup or persistence errors are returned to the UI, preventing silent partial delete states.

@@ -181,9 +181,7 @@ pub fn add_task(
 
 #[tauri::command]
 pub fn delete_task(app: AppHandle, state: State<StoreState>, id: String) -> Result<(), String> {
-  lock_or_recover(&state.tasks).retain(|t| t.id != id);
-  save_to_store(&app, &state)?;
-  Ok(())
+  delete_task_atomic(app, state, id)
 }
 
 #[tauri::command]
