@@ -1,6 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { FolderPlus, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Breadcrumbs } from '@/components/breadcrumbs';
@@ -180,32 +179,31 @@ export function Board() {
     async (title: string) => {
       setAddTaskOpen(false);
 
-      await addTask(title, '');
-      const newTaskId = allTasks[allTasks.length - 1]?.id;
-      if (newTaskId) {
-        const task = allTasks[allTasks.length - 1];
-        const project = projects.find((p) => p.id === task?.projectId);
-
-        if (project?.path) {
-          setCopyProgress(undefined);
-          setProgressDialogOpen(true);
-
-          try {
-            await invoke('copy_task', {
-              taskId: newTaskId,
-              projectId: project.id,
-              projectPath: project.path,
-            });
-          } catch (e) {
-            console.error('Failed to copy project:', e);
-            setProgressDialogOpen(false);
-          }
-        }
-
-        handleSelectTask(newTaskId);
+      const newTaskId = await addTask(title, '');
+      if (!newTaskId || !currentProjectId) {
+        return;
       }
+
+      const project = projects.find((p) => p.id === currentProjectId);
+      if (project?.path) {
+        setCopyProgress(undefined);
+        setProgressDialogOpen(true);
+
+        try {
+          await invoke('copy_task', {
+            taskId: newTaskId,
+            projectId: project.id,
+            projectPath: project.path,
+          });
+        } catch (e) {
+          console.error('Failed to copy project:', e);
+          setProgressDialogOpen(false);
+        }
+      }
+
+      await handleSelectTask(newTaskId);
     },
-    [addTask, allTasks, projects, handleSelectTask]
+    [addTask, currentProjectId, projects, handleSelectTask]
   );
 
   const handleAddProject = useCallback(
@@ -260,18 +258,18 @@ export function Board() {
         >
           NOVERCODE
         </h1>
-        {currentProject && (
-          <Breadcrumbs
-            currentProject={currentProject}
-            selectedTask={selectedTask}
-            projects={projects}
-            tasks={currentTasks}
-            onProjectSelect={(id) => setCurrentProjectId(id)}
-            onTaskSelect={handleSelectTask}
-            onDeleteProject={handleDeleteProject}
-            onDeleteTask={handleDeleteTask}
-          />
-        )}
+        <Breadcrumbs
+          currentProject={currentProject}
+          selectedTask={selectedTask}
+          projects={projects}
+          tasks={currentTasks}
+          onProjectSelect={(id) => setCurrentProjectId(id)}
+          onTaskSelect={handleSelectTask}
+          onDeleteProject={handleDeleteProject}
+          onDeleteTask={handleDeleteTask}
+          onAddProject={() => setAddProjectOpen(true)}
+          onAddTask={() => setAddTaskOpen(true)}
+        />
       </header>
 
       <div className="flex-1 overflow-hidden relative">
@@ -286,27 +284,7 @@ export function Board() {
             <p>{currentProjectId ? 'select a task to start' : 'select a project'}</p>
           </div>
         )}
-        <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setAddProjectOpen(true)}
-            aria-label="add project"
-            className="h-11 w-11 cursor-pointer rounded-lg border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.7)] transition-all duration-200 hover:border-[rgba(255,255,255,0.35)] hover:bg-[rgba(255,255,255,0.12)] hover:text-[#FFFFFF]"
-          >
-            <FolderPlus className="mx-auto h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setAddTaskOpen(true)}
-            aria-label="add task"
-            disabled={!currentProjectId}
-            className="h-11 w-11 cursor-pointer rounded-lg border border-[rgba(0,255,0,0.45)] bg-[rgba(0,255,0,0.12)] text-[#00FF00] shadow-[0_0_10px_rgba(0,255,0,0.3)] transition-all duration-200 hover:bg-[rgba(0,255,0,0.2)] hover:shadow-[0_0_16px_rgba(0,255,0,0.45)] disabled:cursor-not-allowed disabled:border-[rgba(255,255,255,0.12)] disabled:bg-[rgba(255,255,255,0.06)] disabled:text-[rgba(255,255,255,0.35)] disabled:shadow-none"
-          >
-            <Plus className="mx-auto h-4 w-4" />
-          </button>
-        </div>
       </div>
-
       <footer className="border-t border-[rgba(255,255,255,0.15)] px-4 py-2 flex items-center justify-between">
         <span className="text-xs text-[rgba(255,255,255,0.5)] font-mono">
           [ONLINE] | projects: {projects.length} | tasks: {currentTasks.length} | ready

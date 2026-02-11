@@ -1,4 +1,4 @@
-import { ChevronDown, Folder, Trash2 } from 'lucide-react';
+import { ChevronDown, Folder, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,8 @@ interface BreadcrumbsProps {
   onTaskSelect: (id: string) => void;
   onDeleteProject?: (id: string) => void;
   onDeleteTask?: (id: string) => void;
+  onAddProject?: () => void;
+  onAddTask?: () => void;
 }
 
 export function Breadcrumbs({
@@ -26,6 +28,8 @@ export function Breadcrumbs({
   onTaskSelect,
   onDeleteProject,
   onDeleteTask,
+  onAddProject,
+  onAddTask,
 }: BreadcrumbsProps) {
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -61,42 +65,56 @@ export function Breadcrumbs({
                 <p>no projects found</p>
               </div>
             ) : (
-              <div className="space-y-1">
-                {projects.map((project) => (
-                  <div
-                    key={project.id}
-                    className={`group flex items-center gap-2 px-3 py-2 font-mono text-sm transition-colors ${
-                      currentProject?.id === project.id
-                        ? 'bg-[rgba(255,255,255,0.1)] text-[#FFFFFF]'
-                        : 'text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#FFFFFF]'
-                    }`}
-                  >
-                    <Folder className="h-3 w-3 shrink-0" />
-                    <button
-                      onClick={() => {
-                        onProjectSelect(project.id);
-                        setOpenMenu(null);
-                      }}
-                      className="truncate flex-1 text-left"
+              <>
+                <div className="space-y-1">
+                  {projects.map((project) => (
+                    <div
+                      key={project.id}
+                      className={`group flex items-center gap-2 px-3 py-2 font-mono text-sm transition-colors ${
+                        currentProject?.id === project.id
+                          ? 'bg-[rgba(255,255,255,0.1)] text-[#FFFFFF]'
+                          : 'text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#FFFFFF]'
+                      }`}
                     >
-                      {project.name}
-                    </button>
-                    {onDeleteProject && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-5 w-5 opacity-0 group-hover:opacity-100 text-[rgba(255,255,255,0.4)] hover:text-[#FF0000] hover:bg-transparent shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteProject(project.id);
+                      <Folder className="h-3 w-3 shrink-0" />
+                      <button
+                        onClick={() => {
+                          onProjectSelect(project.id);
+                          setOpenMenu(null);
                         }}
+                        className="truncate flex-1 text-left"
                       >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
+                        {project.name}
+                      </button>
+                      {onDeleteProject && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100 text-[rgba(255,255,255,0.4)] hover:text-[#FF0000] hover:bg-transparent shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteProject(project.id);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-[rgba(255,255,255,0.15)] pt-2 mt-2">
+                  <button
+                    onClick={() => {
+                      onAddProject?.();
+                      setOpenMenu(null);
+                    }}
+                    className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-sm cursor-pointer text-xs font-mono uppercase tracking-[0.15em] text-[rgba(255,255,255,0.5)] hover:text-[#00FF00] hover:bg-[rgba(0,255,0,0.1)] transition-all border border-transparent hover:border-[rgba(0,255,0,0.2)]"
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>[new project]</span>
+                  </button>
+                </div>
+              </>
             )}
           </div>
         )}
@@ -169,6 +187,18 @@ export function Breadcrumbs({
                 ))}
               </div>
             )}
+            <div className="border-t border-[rgba(255,255,255,0.15)] pt-2 mt-2">
+              <button
+                onClick={() => {
+                  onAddTask?.();
+                  setOpenMenu(null);
+                }}
+                className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-sm cursor-pointer text-xs font-mono uppercase tracking-[0.15em] text-[rgba(255,255,255,0.5)] hover:text-[#00FF00] hover:bg-[rgba(0,255,0,0.1)] transition-all border border-transparent hover:border-[rgba(0,255,0,0.2)]"
+              >
+                <Plus className="h-3 w-3" />
+                <span>[new task]</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
