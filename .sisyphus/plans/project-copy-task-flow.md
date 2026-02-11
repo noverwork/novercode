@@ -396,10 +396,10 @@ Parallel Speedup: ~30-40% over sequential
   - `src/components/kanban/progress-dialog.tsx:19` - existing progress dialog component.
 
   **Acceptance Criteria**:
-  - [ ] Add Task starts copy immediately and opens progress modal.
-  - [ ] Progress bar visibly increments from backend events.
-  - [ ] On success modal closes and task becomes selectable.
-  - [ ] On failure modal shows failure state and no broken task workspace remains.
+  - [x] Add Task starts copy immediately and opens progress modal.
+  - [x] Progress bar visibly increments from backend events.
+  - [x] On success modal closes and task becomes selectable.
+  - [x] On failure modal shows failure state and no broken task workspace remains.
   - [ ] `npm run check` passes.
 
   **Agent-Executed QA Scenarios**:
@@ -467,9 +467,9 @@ Parallel Speedup: ~30-40% over sequential
   - `src/components/kanban/diff-view.tsx` - task working dir consumer.
 
   **Acceptance Criteria**:
-  - [ ] Selecting an already-created task does not trigger workspace creation call.
-  - [ ] Terminal and diff both use resolved task copy path.
-  - [ ] Legacy tasks without copy path still open via fallback path.
+  - [x] Selecting an already-created task does not trigger workspace creation call.
+  - [x] Terminal and diff both use resolved task copy path.
+  - [x] Legacy tasks without copy path still open via fallback path.
 
   **Agent-Executed QA Scenarios**:
 
@@ -532,10 +532,10 @@ Parallel Speedup: ~30-40% over sequential
   - `src-tauri/src/worktree.rs:100` - remove workspace command to integrate.
 
   **Acceptance Criteria**:
-  - [ ] Task delete triggers terminal kill before folder delete.
-  - [ ] Task folder removed from disk when delete succeeds.
-  - [ ] Task metadata removed from store.
-  - [ ] On cleanup failure, user receives explicit error and no silent partial state.
+  - [x] Task delete triggers terminal kill before folder delete.
+  - [x] Task folder removed from disk when delete succeeds.
+  - [x] Task metadata removed from store.
+  - [x] On cleanup failure, user receives explicit error and no silent partial state.
 
   **Agent-Executed QA Scenarios**:
 

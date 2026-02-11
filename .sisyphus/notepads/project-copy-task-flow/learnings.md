@@ -20,3 +20,15 @@
 
 - Aligning terminology with the user's mental model ("Task Copy") reduces confusion, especially when the underlying implementation might use specific technical tools (like git worktrees) that the user doesn't need to know about.
 - When changing terminology, it's important to scan not just the primary UI files but also documentation (README) and backend error messages to ensure a consistent experience.
+
+## 2026-02-11 (task 6 atomic delete)
+
+- A single backend command (`delete_task_atomic`) removes frontend race conditions and guarantees delete order: kill terminal first, cleanup workspace second, delete metadata last.
+- Task-delete failure handling is safer when cleanup errors are surfaced as command failures, so the UI can show explicit feedback instead of silently dropping task state.
+- Metadata rollback should be explicit when store persistence fails after filesystem cleanup; compensating reinsert + save keeps app state consistent for retry.
+
+## 2026-02-11 (task 4)
+
+- Task selection no longer needs to create anything: resolving working directory on demand via `get_task_working_dir` avoids accidental workspace creation calls when opening an existing task.
+- Working directory resolution should be anchored to the selected task's owning project (not just current UI project) so terminal/diff stay correct even if selection and current project can drift.
+- Legacy compatibility is preserved by returning `project_path` when deterministic task copy path does not exist.

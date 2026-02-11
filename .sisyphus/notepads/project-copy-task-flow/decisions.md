@@ -19,3 +19,14 @@
 
 - Updated user-facing strings in README.md and board.tsx to use "Task Copy" or "Copying project" instead of "Worktree" or "Creating worktree".
 - Kept internal module names (worktree.rs) and function names (create_worktree) to maintain developer consistency and avoid breaking internal logic, while ensuring user-visible error messages match the new model.
+
+## 2026-02-11 (task 6 atomic delete)
+
+- Added `store::delete_task_atomic` as the canonical task deletion entrypoint so cleanup ordering is enforced in one backend flow.
+- Reused workspace cleanup logic through a shared `worktree::remove_task_copy` helper; `remove_worktree` now delegates to it instead of duplicating deletion behavior.
+- Adopted a compensation policy for store-save failure after cleanup: restore removed task metadata and return an explicit error describing whether rollback succeeded.
+
+## 2026-02-11 (task 4)
+
+- Switched board selection flow from `create_worktree` to `get_task_working_dir` so opening an existing task is read-only with respect to workspace provisioning.
+- Kept `get_task_working_dir` deterministic (`worktrees/{project_id}/{task_id}`) with explicit fallback to `project_path` for older tasks that predate copied workspaces.

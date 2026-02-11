@@ -107,7 +107,7 @@ export function useKanban() {
   );
 
   const deleteTask = useCallback(async (id: string) => {
-    await invoke('delete_task', { id });
+    await invoke('delete_task_atomic', { id });
     setTasks((prev) => prev.filter((t) => t.id !== id));
     setRecentTaskIds((prev) => {
       const updated = new Set(prev);

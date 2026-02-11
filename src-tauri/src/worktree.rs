@@ -172,22 +172,21 @@ pub fn create_worktree(
 }
 
 /// 移除 git worktree
-#[tauri::command]
-pub fn remove_worktree(
-  app: AppHandle,
-  task_id: String,
-  project_id: String,
-  project_path: Option<String>,
+pub fn remove_task_copy(
+  app: &AppHandle,
+  task_id: &str,
+  project_id: &str,
+  project_path: Option<&str>,
 ) -> Result<(), String> {
-  let worktree_path = get_task_workspace_path(&app, &project_id, &task_id)?;
-  ensure_within_worktrees_root(&app, &worktree_path)?;
+  let worktree_path = get_task_workspace_path(app, project_id, task_id)?;
+  ensure_within_worktrees_root(app, &worktree_path)?;
 
   if !worktree_path.exists() {
     return Ok(());
   }
 
   // 如果有 project_path 且是 git repo，用 git worktree remove
-  if let Some(ref path) = project_path {
+  if let Some(path) = project_path {
     if is_git_repo(path) {
       let _ = Command::new("git")
         .current_dir(path)
@@ -204,13 +203,24 @@ pub fn remove_worktree(
   // 確保目錄被刪除
   if worktree_path.exists() {
     std::fs::remove_dir_all(&worktree_path)
-      .map_err(|e| format!("Failed to remove task copy: {e}"))?;
+      .map_err(|e| format!("Failed to remove task copy for {task_id}: {e}"))?;
   }
 
   Ok(())
 }
 
-/// 取得 task 的工作目錄（worktree 或原始路徑）
+/// 移除 git worktree
+#[tauri::command]
+pub fn remove_worktree(
+  app: AppHandle,
+  task_id: String,
+  project_id: String,
+  project_path: Option<String>,
+) -> Result<(), String> {
+  remove_task_copy(&app, &task_id, &project_id, project_path.as_deref())
+}
+
+/// 取得 task 的工作目錄（task copy 或 legacy project 路徑）
 #[tauri::command]
 pub fn get_task_working_dir(
   app: AppHandle,
@@ -218,13 +228,13 @@ pub fn get_task_working_dir(
   project_id: String,
   project_path: Option<String>,
 ) -> Result<Option<String>, String> {
-  // 檢查是否有 worktree
-  let worktree_path = get_task_workspace_path(&app, &project_id, &task_id)?;
-  if worktree_path.exists() {
-    return Ok(Some(worktree_path.to_string_lossy().to_string()));
+  // Prefer task copy path first
+  let task_copy_path = get_task_workspace_path(&app, &project_id, &task_id)?;
+  if task_copy_path.exists() {
+    return Ok(Some(task_copy_path.to_string_lossy().to_string()));
   }
 
-  // 沒有 worktree，返回 project path
+  // Legacy fallback: older tasks may not have a copied workspace yet
   Ok(project_path)
 }
 

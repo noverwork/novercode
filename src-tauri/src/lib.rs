@@ -140,6 +140,7 @@ pub fn run() {
       store::get_tasks_by_project,
       store::add_task,
       store::delete_task,
+      store::delete_task_atomic,
       store::get_settings,
       store::update_settings,
       worktree::create_worktree,

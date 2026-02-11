@@ -3,6 +3,8 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_store::StoreExt;
 
+use crate::{terminal, worktree};
+
 // 處理 mutex poison：即使 poisoned 也取得 guard（資料可能不一致但不會 panic）
 fn lock_or_recover<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
   mutex.lock().unwrap_or_else(PoisonError::into_inner)
@@ -181,6 +183,60 @@ pub fn add_task(
 pub fn delete_task(app: AppHandle, state: State<StoreState>, id: String) -> Result<(), String> {
   lock_or_recover(&state.tasks).retain(|t| t.id != id);
   save_to_store(&app, &state)?;
+  Ok(())
+}
+
+#[tauri::command]
+pub fn delete_task_atomic(
+  app: AppHandle,
+  state: State<StoreState>,
+  id: String,
+) -> Result<(), String> {
+  let task = lock_or_recover(&state.tasks)
+    .iter()
+    .find(|t| t.id == id)
+    .cloned()
+    .ok_or_else(|| format!("Task not found: {id}"))?;
+
+  let project_path = lock_or_recover(&state.projects)
+    .iter()
+    .find(|p| p.id == task.project_id)
+    .and_then(|p| p.path.clone());
+
+  terminal::terminal_kill(task.id.clone())
+    .map_err(|e| format!("Failed to kill terminal for task {}: {e}", task.id))?;
+
+  worktree::remove_task_copy(&app, &task.id, &task.project_id, project_path.as_deref())
+    .map_err(|e| format!("Failed to cleanup task workspace for {}: {e}", task.id))?;
+
+  let (removed_index, removed_task) = {
+    let mut tasks = lock_or_recover(&state.tasks);
+    let Some(index) = tasks.iter().position(|t| t.id == task.id) else {
+      return Err(format!("Task metadata changed during delete: {}", task.id));
+    };
+    (index, tasks.remove(index))
+  };
+
+  if let Err(save_error) = save_to_store(&app, &state) {
+    {
+      let mut tasks = lock_or_recover(&state.tasks);
+      if tasks.iter().all(|t| t.id != removed_task.id) {
+        let insert_index = removed_index.min(tasks.len());
+        tasks.insert(insert_index, removed_task);
+      }
+    }
+
+    if let Err(rollback_error) = save_to_store(&app, &state) {
+      return Err(format!(
+        "Task workspace cleanup succeeded but deleting metadata failed: {save_error}; rollback also failed: {rollback_error}"
+      ));
+    }
+
+    return Err(format!(
+      "Task workspace cleanup succeeded but deleting metadata failed: {save_error}; metadata rollback applied"
+    ));
+  }
+
   Ok(())
 }
 

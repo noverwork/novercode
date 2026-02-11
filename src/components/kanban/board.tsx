@@ -79,46 +79,56 @@ export function Board() {
 
   /* eslint-disable react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect */
   useEffect(() => {
-    if (!selectedTaskId) return;
+    if (!selectedTaskId) {
+      setWorktree({ status: 'idle' });
+      return;
+    }
 
-    if (!currentProject?.path) {
-      // No path means project doesn't have git - skip worktree
+    const task = allTasks.find((item) => item.id === selectedTaskId);
+    const taskProject = task ? projects.find((item) => item.id === task.projectId) : null;
+    const project = taskProject || currentProject;
+
+    if (!project?.path) {
+      // No path means project doesn't have workspace path
       setWorktree({ status: 'ready', taskId: selectedTaskId, dir: null });
       return;
     }
 
-    // Set loading state for async worktree creation
+    // Set loading state for async workspace resolution
     setWorktree({ status: 'loading', taskId: selectedTaskId });
 
     let cancelled = false;
-    const setupWorktree = async () => {
+    const resolveWorkingDir = async () => {
       try {
-        const path = await invoke<string>('create_worktree', {
+        const path = await invoke<string | null>('get_task_working_dir', {
           taskId: selectedTaskId,
-          projectName: currentProject.name,
-          projectPath: currentProject.path,
-          baseBranch: currentProject.baseBranch,
+          projectId: project.id,
+          projectPath: project.path,
         });
-        if (!cancelled) {
-          setWorktree({ status: 'ready', taskId: selectedTaskId, dir: path });
-        }
-      } catch (e) {
-        console.error('Failed to create worktree:', e);
         if (!cancelled) {
           setWorktree({
             status: 'ready',
             taskId: selectedTaskId,
-            dir: currentProject.path || null,
+            dir: path || project.path || null,
+          });
+        }
+      } catch (e) {
+        console.error('Failed to resolve working directory:', e);
+        if (!cancelled) {
+          setWorktree({
+            status: 'ready',
+            taskId: selectedTaskId,
+            dir: project.path || null,
           });
         }
       }
     };
 
-    setupWorktree();
+    resolveWorkingDir();
     return () => {
       cancelled = true;
     };
-  }, [selectedTaskId, recentTasks, currentProject, projects]);
+  }, [selectedTaskId, allTasks, currentProject, projects]);
   /* eslint-enable react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect */
 
   const handleDeleteProject = async (projectId: string) => {
@@ -155,6 +165,24 @@ export function Board() {
       trackRecentTask(id);
     },
     [trackRecentTask]
+  );
+
+  const handleDeleteTask = useCallback(
+    async (taskId: string) => {
+      try {
+        await deleteTask(taskId);
+        if (selectedTaskId === taskId) {
+          setSelectedTaskId(null);
+          setWorktree({ status: 'idle' });
+        }
+      } catch (e) {
+        console.error('Failed to delete task:', e);
+        const message =
+          typeof e === 'string' ? e : e instanceof Error ? e.message : JSON.stringify(e);
+        window.alert(`Task delete failed: ${message}`);
+      }
+    },
+    [deleteTask, selectedTaskId]
   );
 
   const handleQuickSwitchProjects = () => {
@@ -293,7 +321,7 @@ export function Board() {
           onProjectSelect={setCurrentProjectId}
           onTaskSelect={handleSelectTask}
           onDeleteProject={handleDeleteProject}
-          onDeleteTask={deleteTask}
+          onDeleteTask={handleDeleteTask}
         />
 
         <div className="flex-1 flex relative">
@@ -311,7 +339,7 @@ export function Board() {
           ) : selectedTaskId && !isWorktreeReady ? (
             <div className="flex-1 flex items-center justify-center text-[rgba(255,255,255,0.5)] font-mono gap-3">
               <div className="h-6 w-6 border-2 border-[#00FF00] border-t-transparent rounded-full animate-spin" />
-              <p>copying project...</p>
+              <p>loading workspace...</p>
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-[rgba(255,255,255,0.4)] font-mono">
