@@ -1,9 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import { Bug, FileSearch, GitCommit, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-
-import { Button } from '@/components/ui/button';
 
 interface TermCell {
   c: string;
@@ -396,42 +393,8 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
     };
   }, [taskId, isRunning, calculateSize]);
 
-  // 快捷指令
-  const quickCommands = [
-    { icon: GitCommit, label: 'commit', command: '/commit\n' },
-    { icon: FileSearch, label: 'review', command: 'review the changes I made\n' },
-    { icon: Bug, label: 'fix', command: 'fix the errors\n' },
-    { icon: Sparkles, label: 'improve', command: 'improve this code\n' },
-  ];
-
-  const handleQuickCommand = async (command: string) => {
-    const data = Array.from(new TextEncoder().encode(command));
-    try {
-      await invoke('terminal_write', { id: taskId, data });
-    } catch (e) {
-      console.error('Failed to send command:', e);
-    }
-  };
-
   return (
-    <div className="h-full flex flex-col bg-[#0a0a0a]" style={{ minHeight: '400px' }}>
-      {/* Quick Commands */}
-      <div className="border-b border-[rgba(255,255,255,0.15)] px-4 py-2 flex items-center gap-2">
-        {quickCommands.map((cmd) => (
-          <Button
-            key={cmd.label}
-            variant="ghost"
-            size="sm"
-            onClick={() => handleQuickCommand(cmd.command)}
-            className="text-[rgba(255,255,255,0.6)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)] h-7 px-2 font-mono text-xs uppercase tracking-[0.15em]"
-          >
-            <cmd.icon className="h-3 w-3 mr-1" />
-            {cmd.label}
-          </Button>
-        ))}
-      </div>
-
-      {/* Terminal Canvas */}
+    <div className="h-full flex flex-col bg-[#0a0a0a]">
       <div
         ref={containerRef}
         className="flex-1 overflow-hidden focus:outline-none relative"
@@ -443,7 +406,6 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
           className="absolute inset-0"
           style={{ imageRendering: 'pixelated' }}
         />
-        {/* Loading overlay */}
         {!isRunning && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]">
             <div
@@ -451,11 +413,10 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
               style={{ textShadow: '0 0 10px rgba(0,255,0,0.5)' }}
             >
               <span className="animate-pulse">●</span>
-              <span>initializing claude...</span>
+              <span>initializing...</span>
             </div>
           </div>
         )}
-        {/* Hidden textarea for keyboard input (including IME) */}
         <textarea
           ref={inputRef}
           className="absolute opacity-0 pointer-events-none"

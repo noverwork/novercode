@@ -7,10 +7,9 @@ import { ActivityBar } from '@/components/activity-bar';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { AddProjectDialog } from '@/components/kanban/add-project-dialog';
 import { AddTaskDialog } from '@/components/kanban/add-task-dialog';
-import { CanvasTerminal } from '@/components/kanban/canvas-terminal';
 import { DiffView } from '@/components/kanban/diff-view';
 import { ProgressDialog } from '@/components/kanban/progress-dialog';
-import { QuickSwitcher } from '@/components/quick-switcher';
+import { TerminalPanel } from '@/components/kanban/terminal-panel';
 import { useKanban } from '@/hooks/useKanban';
 
 type WorktreeState =
@@ -18,16 +17,32 @@ type WorktreeState =
   | { status: 'loading'; taskId: string }
   | { status: 'ready'; taskId: string; dir: string | null };
 
-type CopyProgressData = {
-  project_name: string;
-  progress: number;
+type CopyProgressStatus = 'in_progress' | 'completed' | 'failed';
+
+type CopyTaskError = {
+  code: string;
+  message: string;
+  task_id: string;
+  project_id: string;
+  task_path: string | null;
   copied_files: number;
   total_files: number;
 };
 
-async function killTerminal(taskId: string) {
+type CopyProgressData = {
+  task_id: string;
+  project_id: string;
+  progress: number;
+  copied_files: number;
+  total_files: number;
+  status: CopyProgressStatus;
+  task_path: string;
+  error: CopyTaskError | null;
+};
+
+async function killTerminal(terminalId: string) {
   try {
-    await invoke('terminal_kill', { id: taskId });
+    await invoke('terminal_kill', { id: terminalId });
   } catch (e) {
     console.error('Failed to kill terminal:', e);
   }
@@ -46,14 +61,9 @@ export function Board() {
     allTasks,
     addTask,
     deleteTask,
-    getRecentTasks,
-    trackRecentTask,
   } = useKanban();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [worktree, setWorktree] = useState<WorktreeState>({ status: 'idle' });
-  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
-  const [quickSwitcherMode, setQuickSwitcherMode] = useState<'projects' | 'tasks'>('projects');
-  const [focusedPanel, setFocusedPanel] = useState<'terminal' | 'diff'>('terminal');
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [addProjectOpen, setAddProjectOpen] = useState(false);
   const [progressDialogOpen, setProgressDialogOpen] = useState(false);
@@ -75,7 +85,6 @@ export function Board() {
     () => allTasks.find((t) => t.id === selectedTaskId) || null,
     [allTasks, selectedTaskId]
   );
-  const recentTasks = useMemo(() => getRecentTasks(), [getRecentTasks]);
 
   /* eslint-disable react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect */
   useEffect(() => {
@@ -159,13 +168,9 @@ export function Board() {
     await deleteProject(projectId);
   };
 
-  const handleSelectTask = useCallback(
-    (id: string) => {
-      setSelectedTaskId(id);
-      trackRecentTask(id);
-    },
-    [trackRecentTask]
-  );
+  const handleSelectTask = useCallback((id: string) => {
+    setSelectedTaskId(id);
+  }, []);
 
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
@@ -185,43 +190,36 @@ export function Board() {
     [deleteTask, selectedTaskId]
   );
 
-  const handleQuickSwitchProjects = () => {
-    setQuickSwitcherOpen(true);
-    setQuickSwitcherMode('projects');
-  };
-
-  const handleQuickSwitchTasks = () => {
-    setQuickSwitcherOpen(true);
-    setQuickSwitcherMode('tasks');
-  };
-
-  const handleRecentTask = useCallback(
-    (index: number) => {
-      const tasksList = recentTasks;
-      if (index < tasksList.length && tasksList[index]) {
-        handleSelectTask(tasksList[index].id);
-      }
-    },
-    [recentTasks, handleSelectTask]
-  );
-
-  const handleTogglePanel = () => {
-    setFocusedPanel((prev) => (prev === 'terminal' ? 'diff' : 'terminal'));
-  };
-
-  const handleClearSelection = () => {
-    setSelectedTaskId(null);
-  };
-
   const handleAddTask = useCallback(
     async (title: string) => {
+      setAddTaskOpen(false);
+
       await addTask(title, '');
       const newTaskId = allTasks[allTasks.length - 1]?.id;
       if (newTaskId) {
+        const task = allTasks[allTasks.length - 1];
+        const project = projects.find((p) => p.id === task?.projectId);
+
+        if (project?.path) {
+          setCopyProgress(undefined);
+          setProgressDialogOpen(true);
+
+          try {
+            await invoke('copy_task', {
+              taskId: newTaskId,
+              projectId: project.id,
+              projectPath: project.path,
+            });
+          } catch (e) {
+            console.error('Failed to copy project:', e);
+            setProgressDialogOpen(false);
+          }
+        }
+
         handleSelectTask(newTaskId);
       }
     },
-    [addTask, allTasks, handleSelectTask]
+    [addTask, allTasks, projects, handleSelectTask]
   );
 
   const handleAddProject = useCallback(
@@ -233,44 +231,21 @@ export function Board() {
   );
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
-        e.preventDefault();
-        if (currentProjectId) {
-          setAddTaskOpen(true);
-        }
-      } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'P') {
-        e.preventDefault();
-        handleQuickSwitchProjects();
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
-        e.preventDefault();
-        handleQuickSwitchProjects();
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'T') {
-        e.preventDefault();
-        handleQuickSwitchTasks();
-      } else if (e.key >= '1' && e.key <= '9') {
-        e.preventDefault();
-        handleRecentTask(parseInt(e.key) - 1);
-      } else if (e.key === 'Tab') {
-        e.preventDefault();
-        handleTogglePanel();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        handleClearSelection();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTaskId, recentTasks, currentProject, projects, handleRecentTask, currentProjectId]);
-
-  useEffect(() => {
     let unlisten: (() => void) | undefined;
+    let progressTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const setupListener = async () => {
       try {
         unlisten = await listen<CopyProgressData>('copy-progress', (event) => {
-          setCopyProgress(event.payload);
+          const progress = event.payload;
+          setCopyProgress(progress);
+
+          if (progress.status === 'completed' || progress.status === 'failed') {
+            if (progressTimeout) clearTimeout(progressTimeout);
+            progressTimeout = setTimeout(() => {
+              setProgressDialogOpen(false);
+            }, 500);
+          }
         });
       } catch (error) {
         console.error('Failed to listen to copy-progress:', error);
@@ -280,6 +255,7 @@ export function Board() {
     setupListener();
 
     return () => {
+      if (progressTimeout) clearTimeout(progressTimeout);
       unlisten?.();
     };
   }, []);
@@ -328,12 +304,10 @@ export function Board() {
           {selectedTaskId && isWorktreeReady ? (
             <div className="flex-1 flex overflow-hidden">
               <div className="w-[60%] flex flex-col border-r border-[rgba(255,255,255,0.15)]">
-                {focusedPanel === 'terminal' && (
-                  <CanvasTerminal taskId={selectedTaskId} workingDir={workingDir || undefined} />
-                )}
+                <TerminalPanel taskId={selectedTaskId} workingDir={workingDir || undefined} />
               </div>
               <div className="w-[40%] flex flex-col">
-                {focusedPanel === 'diff' && <DiffView workingDir={workingDir || undefined} />}
+                <DiffView workingDir={workingDir || undefined} />
               </div>
             </div>
           ) : selectedTaskId && !isWorktreeReady ? (
@@ -372,38 +346,8 @@ export function Board() {
         <span className="text-xs text-[rgba(255,255,255,0.5)] font-mono">
           [ONLINE] | projects: {projects.length} | tasks: {currentTasks.length} | ready
         </span>
-        <span className="text-xs text-[rgba(255,255,255,0.5)] flex items-center gap-2">
-          <span
-            className="w-2 h-2 bg-[#00FF00] rounded-full"
-            style={{ boxShadow: '0 0 10px rgba(0,255,0,0.5)' }}
-          />
-          <span>$</span>
-          <span className="cursor-blink">█</span>
-          {recentTasks.length > 0 && (
-            <>
-              <span className="text-[rgba(255,255,255,0.3)]">|</span>
-              <span className="text-[rgba(255,255,255,0.5)]">recent: {recentTasks.length}</span>
-            </>
-          )}
-        </span>
-        <span className="text-xs text-[rgba(255,255,255,0.5)]">
-          <span className="hidden sm:inline">1-9 quick switch | </span>
-          <span className="hidden sm:inline">Tab: panels | </span>
-          <span>Esc: clear</span>
-        </span>
       </footer>
 
-      <QuickSwitcher
-        open={quickSwitcherOpen}
-        onOpenChange={setQuickSwitcherOpen}
-        mode={quickSwitcherMode}
-        projects={projects}
-        tasks={recentTasks}
-        currentProjectId={currentProjectId}
-        selectedTaskId={selectedTaskId}
-        onProjectSelect={setCurrentProjectId}
-        onTaskSelect={handleSelectTask}
-      />
       <AddTaskDialog open={addTaskOpen} onOpenChange={setAddTaskOpen} onAdd={handleAddTask} />
       <AddProjectDialog
         open={addProjectOpen}

@@ -2,6 +2,7 @@ use fs_extra::dir::{self, CopyOptions};
 use serde::Serialize;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
+use tauri::async_runtime;
 use tauri::{AppHandle, Emitter, Manager};
 
 /// 取得 worktrees 目錄
@@ -317,7 +318,7 @@ fn emit_copy_failure_event(app: &AppHandle, task_path: &Path, error: CopyTaskErr
 
 /// 複製 project 到 task 工作目錄，並發送 task-scoped 進度事件
 #[tauri::command]
-pub fn copy_task(
+pub async fn copy_task(
   app: AppHandle,
   task_id: String,
   project_id: String,
@@ -422,102 +423,120 @@ pub fn copy_task(
     })?;
   }
 
-  let total_files = count_files(&source_path).map_err(|e| {
-    let error = build_copy_task_error(
-      "count_files_failed",
-      format!("Failed to count source files: {e}"),
-      &task_id,
-      &project_id,
-      Some(&dest_path),
-      0,
-      0,
-    );
-    emit_copy_failure_event(&app, &dest_path, error.clone());
-    error
-  })?;
-
-  let mut options = CopyOptions::new();
-  options.content_only = false;
-  options.copy_inside = false;
-
-  let mut copied_files = 0usize;
-  let app_handle = app.clone();
   let task_id_clone = task_id.clone();
   let project_id_clone = project_id.clone();
-  let task_path = dest_path.to_string_lossy().to_string();
+  let dest_path_clone = dest_path.clone();
 
-  let handler = |_process_info: dir::TransitProcess| {
-    if total_files > 0 {
-      copied_files = (copied_files + 1).min(total_files);
-    }
+  async_runtime::spawn_blocking(move || {
+    let total_files = count_files(&source_path).map_err(|e| {
+      let error = build_copy_task_error(
+        "count_files_failed",
+        format!("Failed to count source files: {e}"),
+        &task_id,
+        &project_id,
+        Some(&dest_path),
+        0,
+        0,
+      );
+      emit_copy_failure_event(&app, &dest_path, error.clone());
+      error
+    })?;
 
-    let progress = if total_files > 0 {
-      ((copied_files as f64 / total_files as f64) * 99.0).floor() as u32
-    } else {
-      0
+    let mut options = CopyOptions::new();
+    options.content_only = false;
+    options.copy_inside = false;
+
+    let mut copied_files = 0usize;
+    let app_handle = app.clone();
+    let task_id_clone = task_id.clone();
+    let project_id_clone = project_id.clone();
+    let task_path = dest_path.to_string_lossy().to_string();
+
+    let handler = |_process_info: dir::TransitProcess| {
+      if total_files > 0 {
+        copied_files = (copied_files + 1).min(total_files);
+      }
+
+      let progress = if total_files > 0 {
+        ((copied_files as f64 / total_files as f64) * 99.0).floor() as u32
+      } else {
+        0
+      };
+
+      emit_copy_progress_event(
+        &app_handle,
+        CopyProgressEvent {
+          task_id: task_id_clone.clone(),
+          project_id: project_id_clone.clone(),
+          progress,
+          copied_files,
+          total_files,
+          status: CopyProgressStatus::InProgress,
+          task_path: task_path.clone(),
+          error: None,
+        },
+      );
+
+      dir::TransitProcessResult::ContinueOrAbort
     };
 
-    emit_copy_progress_event(
-      &app_handle,
-      CopyProgressEvent {
-        task_id: task_id_clone.clone(),
-        project_id: project_id_clone.clone(),
-        progress,
+    if let Err(copy_error) = dir::copy_with_progress(&project_path, &dest_path, &options, handler) {
+      let mut message = format!("Failed to copy project into task workspace: {copy_error}");
+
+      if dest_path.exists() {
+        if let Err(cleanup_error) = std::fs::remove_dir_all(&dest_path) {
+          message.push_str(&format!(
+            "; failed to cleanup partial copy: {cleanup_error}"
+          ));
+        }
+      }
+
+      let error = build_copy_task_error(
+        "copy_failed",
+        message,
+        &task_id,
+        &project_id,
+        Some(&dest_path),
         copied_files,
         total_files,
-        status: CopyProgressStatus::InProgress,
-        task_path: task_path.clone(),
+      );
+      emit_copy_failure_event(&app, &dest_path, error.clone());
+      return Err(error);
+    }
+
+    let copied_files = if total_files > 0 {
+      total_files
+    } else {
+      copied_files
+    };
+    emit_copy_progress_event(
+      &app,
+      CopyProgressEvent {
+        task_id,
+        project_id,
+        progress: 100,
+        copied_files,
+        total_files,
+        status: CopyProgressStatus::Completed,
+        task_path: dest_path.to_string_lossy().to_string(),
         error: None,
       },
     );
 
-    dir::TransitProcessResult::ContinueOrAbort
-  };
-
-  if let Err(copy_error) = dir::copy_with_progress(&project_path, &dest_path, &options, handler) {
-    let mut message = format!("Failed to copy project into task workspace: {copy_error}");
-
-    if dest_path.exists() {
-      if let Err(cleanup_error) = std::fs::remove_dir_all(&dest_path) {
-        message.push_str(&format!(
-          "; failed to cleanup partial copy: {cleanup_error}"
-        ));
-      }
-    }
-
-    let error = build_copy_task_error(
-      "copy_failed",
-      message,
-      &task_id,
-      &project_id,
-      Some(&dest_path),
-      copied_files,
-      total_files,
-    );
-    emit_copy_failure_event(&app, &dest_path, error.clone());
-    return Err(error);
-  }
-
-  let copied_files = if total_files > 0 {
-    total_files
-  } else {
-    copied_files
-  };
-  emit_copy_progress_event(
-    &app,
-    CopyProgressEvent {
-      task_id,
-      project_id,
-      progress: 100,
-      copied_files,
-      total_files,
-      status: CopyProgressStatus::Completed,
-      task_path: dest_path.to_string_lossy().to_string(),
-      error: None,
-    },
-  );
-
-  Ok(dest_path.to_string_lossy().to_string())
+    Ok(dest_path.to_string_lossy().to_string())
+  })
+  .await
+  .map_err(|e| {
+    build_copy_task_error(
+      "spawn_failed",
+      format!("Failed to spawn copy task: {e}"),
+      &task_id_clone,
+      &project_id_clone,
+      Some(&dest_path_clone),
+      0,
+      0,
+    )
+  })?
 }
 
 /// 計算目錄中的檔案數量（遞歸）
