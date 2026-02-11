@@ -77,6 +77,7 @@ struct TerminalSession {
   sender: EventLoopSender,
   running: Arc<std::sync::atomic::AtomicBool>,
   dirty: Arc<std::sync::atomic::AtomicBool>,
+  cwd: Option<String>,
 }
 
 // Global terminal sessions storage
@@ -246,8 +247,6 @@ fn extract_grid(term: &Term<TauriEventListener>, id: &str) -> TerminalGrid {
 
 // ============ Helper Functions ============
 
-/// Build pure startup arguments for terminal creation
-/// Returns plain shell login args without any command execution
 pub fn build_startup_args(cwd: &Option<String>) -> Vec<String> {
   let mut args = vec!["-l".into()];
 
@@ -270,16 +269,23 @@ pub async fn terminal_create(
   rows: u16,
   cwd: Option<String>,
 ) -> Result<(), String> {
-  // Check if session already exists - if so, just trigger a re-render
-  {
+  let recreate_existing = {
     let sessions = SESSIONS.lock();
     if let Some(session) = sessions.get(&id) {
-      // Mark dirty to trigger re-render for reconnecting client
-      session
-        .dirty
-        .store(true, std::sync::atomic::Ordering::Relaxed);
-      return Ok(());
+      if session.cwd == cwd {
+        session
+          .dirty
+          .store(true, std::sync::atomic::Ordering::Relaxed);
+        return Ok(());
+      }
+      true
+    } else {
+      false
     }
+  };
+
+  if recreate_existing {
+    terminal_kill(id.clone())?;
   }
 
   // === Get claude path from settings ===
@@ -344,19 +350,20 @@ pub async fn terminal_create(
   let term_config = TermConfig::default();
   let term = Term::new(term_config, &term_size, event_listener);
   let term = Arc::new(FairMutex::new(term));
+  let startup_args = build_startup_args(&cwd);
 
   // PTY options - use pure startup args
   #[cfg(target_os = "windows")]
   let pty_config = PtyOptions {
-    shell: Some(tty::Shell::new(shell.clone(), build_startup_args(&cwd))),
-    working_directory: cwd.map(PathBuf::from),
+    shell: Some(tty::Shell::new(shell.clone(), startup_args.clone())),
+    working_directory: cwd.clone().map(PathBuf::from),
     env: std::collections::HashMap::new(),
     drain_on_exit: false,
   };
   #[cfg(not(target_os = "windows"))]
   let pty_config = PtyOptions {
-    shell: Some(tty::Shell::new(shell.clone(), build_startup_args(&cwd))),
-    working_directory: cwd.map(PathBuf::from),
+    shell: Some(tty::Shell::new(shell.clone(), startup_args)),
+    working_directory: cwd.clone().map(PathBuf::from),
     env: std::collections::HashMap::new(),
     drain_on_exit: false,
   };
@@ -397,6 +404,7 @@ pub async fn terminal_create(
         sender,
         running: running.clone(),
         dirty: dirty.clone(),
+        cwd: cwd.clone(),
       },
     );
   }
@@ -502,8 +510,7 @@ mod tests {
 
   #[test]
   fn starts_plain_shell_by_default() {
-    let shell = "/bin/zsh";
-    let args = build_startup_args(shell);
+    let args = build_startup_args(&None);
 
     assert_eq!(args, vec!["-l".to_string()]);
     assert!(!args.contains(&"-c".to_string()));
@@ -512,16 +519,14 @@ mod tests {
 
   #[test]
   fn does_not_autostart_claude_even_when_path_exists() {
-    let shell = "/bin/bash";
-    let args = build_startup_args(shell);
+    let args = build_startup_args(&None);
 
     assert_eq!(args, vec!["-l".to_string()]);
     assert!(!args.contains(&"-c".to_string()));
     assert!(!args.contains(&"claude".to_string()));
 
-    let zsh_args = build_startup_args("/bin/zsh");
-    assert_eq!(zsh_args, vec!["-l".to_string()]);
-    assert!(!zsh_args.contains(&"-c".to_string()));
+    let cwd_args = build_startup_args(&Some("/tmp/worktree".to_string()));
+    assert!(cwd_args.contains(&"-c".to_string()));
   }
 }
 #[tauri::command]

@@ -438,8 +438,8 @@ pub async fn copy_task(
     })?;
 
     let mut options = CopyOptions::new();
-    options.content_only = false;
-    options.copy_inside = false;
+    options.content_only = true;
+    options.copy_inside = true;
 
     let mut copied_files = 0usize;
     let app_handle = app.clone();
