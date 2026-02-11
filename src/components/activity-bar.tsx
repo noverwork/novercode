@@ -2,7 +2,7 @@ import { Folder, ListTodo, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import type { Project, Task } from '@/hooks/useKanban';
+import type { Project, Task } from '@/hooks/use-kanban';
 
 interface ActivityBarProps {
   projects: Project[];

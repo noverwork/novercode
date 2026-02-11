@@ -7,7 +7,7 @@ import { AddProjectDialog } from '@/components/kanban/add-project-dialog';
 import { AddTaskDialog } from '@/components/kanban/add-task-dialog';
 import { ProgressDialog } from '@/components/kanban/progress-dialog';
 import { TerminalPanel } from '@/components/kanban/terminal-panel';
-import { useKanban } from '@/hooks/useKanban';
+import { useKanban } from '@/hooks/use-kanban';
 
 type WorktreeState =
   | { status: 'idle' }

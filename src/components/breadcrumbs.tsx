@@ -2,7 +2,7 @@ import { ChevronDown, Folder, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import type { Project, Task } from '@/hooks/useKanban';
+import type { Project, Task } from '@/hooks/use-kanban';
 
 type OpenMenu = 'project' | 'task' | null;
 

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import type { Project, Task } from '@/hooks/useKanban';
+import type { Project, Task } from '@/hooks/use-kanban';
 
 type ResultType = 'project' | 'task';
 

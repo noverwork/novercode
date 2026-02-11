@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import type { Project, Task } from '@/hooks/useKanban';
+import type { Project, Task } from '@/hooks/use-kanban';
 
 interface QuickSwitcherProps {
   open: boolean;
