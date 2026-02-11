@@ -251,10 +251,9 @@ fn extract_grid(term: &Term<TauriEventListener>, id: &str) -> TerminalGrid {
 pub fn build_startup_args(cwd: &Option<String>) -> Vec<String> {
   let mut args = vec!["-l".into()];
 
-  // Add cd command to switch to working directory
-  if let Some(dir) = cwd {
+  if let Some(ref dir) = cwd {
     args.push("-c".into());
-    args.push(format!("cd \"{}\" && exec \"$SHELL\"", dir));
+    args.push(format!("cd \"{dir}\" && exec \"$SHELL\""));
   }
 
   args
