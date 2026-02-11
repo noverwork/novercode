@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 interface AddProjectDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  onAdd: (name: string, path?: string, baseBranch?: string) => void | Promise<string>;
+  onAdd: (name: string, path?: string) => void | Promise<string>;
 }
 
 function extractName(path: string): string {
@@ -39,16 +39,14 @@ export function AddProjectDialog({
   const setOpen = onOpenChange || setInternalOpen;
 
   const [path, setPath] = useState('');
-  const [baseBranch, setBaseBranch] = useState('main');
 
   const derivedName = path.trim() ? extractName(path.trim()) : '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (derivedName) {
-      await onAdd(derivedName, path.trim() || undefined, baseBranch.trim() || undefined);
+      await onAdd(derivedName, path.trim() || undefined);
       setPath('');
-      setBaseBranch('main');
       setOpen(false);
     }
   };
@@ -114,17 +112,6 @@ export function AddProjectDialog({
                 <span className="text-[rgba(255,255,255,0.8)]">{derivedName}</span>
               </div>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="baseBranch" className="text-[rgba(255,255,255,0.6)] text-xs">
-                $ base_branch =
-              </Label>
-              <Input
-                id="baseBranch"
-                value={baseBranch}
-                onChange={(e) => setBaseBranch(e.target.value)}
-                placeholder="main"
-              />
-            </div>
           </div>
           <DialogFooter className="gap-2">
             <Button

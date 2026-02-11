@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { FolderPlus, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -8,6 +9,7 @@ import { AddProjectDialog } from '@/components/kanban/add-project-dialog';
 import { AddTaskDialog } from '@/components/kanban/add-task-dialog';
 import { CanvasTerminal } from '@/components/kanban/canvas-terminal';
 import { DiffView } from '@/components/kanban/diff-view';
+import { ProgressDialog } from '@/components/kanban/progress-dialog';
 import { QuickSwitcher } from '@/components/quick-switcher';
 import { useKanban } from '@/hooks/useKanban';
 
@@ -15,6 +17,13 @@ type WorktreeState =
   | { status: 'idle' }
   | { status: 'loading'; taskId: string }
   | { status: 'ready'; taskId: string; dir: string | null };
+
+type CopyProgressData = {
+  project_name: string;
+  progress: number;
+  copied_files: number;
+  total_files: number;
+};
 
 async function killTerminal(taskId: string) {
   try {
@@ -47,6 +56,8 @@ export function Board() {
   const [focusedPanel, setFocusedPanel] = useState<'terminal' | 'diff'>('terminal');
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [addProjectOpen, setAddProjectOpen] = useState(false);
+  const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+  const [copyProgress, setCopyProgress] = useState<CopyProgressData | undefined>(undefined);
 
   const workingDir = useMemo(() => {
     if (worktree.status === 'ready' && worktree.taskId === selectedTaskId) {
@@ -225,6 +236,26 @@ export function Board() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedTaskId, recentTasks, currentProject, projects, handleRecentTask, currentProjectId]);
 
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    const setupListener = async () => {
+      try {
+        unlisten = await listen<CopyProgressData>('copy-progress', (event) => {
+          setCopyProgress(event.payload);
+        });
+      } catch (error) {
+        console.error('Failed to listen to copy-progress:', error);
+      }
+    };
+
+    setupListener();
+
+    return () => {
+      unlisten?.();
+    };
+  }, []);
+
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a]">
       <div className="scanlines" />
@@ -350,6 +381,11 @@ export function Board() {
         open={addProjectOpen}
         onOpenChange={setAddProjectOpen}
         onAdd={handleAddProject}
+      />
+      <ProgressDialog
+        open={progressDialogOpen}
+        onOpenChange={setProgressDialogOpen}
+        progress={copyProgress}
       />
     </div>
   );

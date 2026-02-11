@@ -65,8 +65,8 @@ export function useKanban() {
 
   // Project operations
   const addProject = useCallback(
-    async (name: string, path?: string, baseBranch?: string): Promise<string> => {
-      const project = await invoke<Project>('add_project', { name, path, baseBranch });
+    async (name: string, path?: string, _baseBranch?: string): Promise<string> => {
+      const project = await invoke<Project>('add_project', { name, path });
       setProjects((prev) => [...prev, project]);
       setCurrentProjectId(project.id);
       return project.id;

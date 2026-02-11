@@ -26,6 +26,7 @@ pub struct Project {
   pub id: String,
   pub name: String,
   pub path: Option<String>,
+  #[serde(default, alias = "base_branch", skip_serializing)]
   pub base_branch: Option<String>,
 }
 
@@ -117,13 +118,12 @@ pub fn add_project(
   state: State<StoreState>,
   name: String,
   path: Option<String>,
-  base_branch: Option<String>,
 ) -> Result<Project, String> {
   let project = Project {
     id: uuid::Uuid::new_v4().to_string(),
     name,
     path,
-    base_branch,
+    base_branch: None,
   };
 
   lock_or_recover(&state.projects).push(project.clone());
