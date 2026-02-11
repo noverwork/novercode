@@ -297,7 +297,7 @@ Parallel Speedup: ~30-40% over sequential
   - Files: `src-tauri/src/worktree.rs`
   - Pre-commit: `cd src-tauri && cargo check`
 
-- [ ] 3. Implement Task-Scoped Full Copy Command with Progress Contract
+  - [x] 3. Implement Task-Scoped Full Copy Command with Progress Contract
 
   **What to do**:
   - Add/replace backend command to copy from selected project path into task workspace path.
@@ -567,7 +567,7 @@ Parallel Speedup: ~30-40% over sequential
   - Files: `src/hooks/useKanban.ts`, `src/components/kanban/board.tsx`, `src-tauri/src/store.rs`, `src-tauri/src/worktree.rs`
   - Pre-commit: `npm run check && cd src-tauri && cargo check`
 
-- [ ] 7. Update Product Language from Worktree to Task Copy
+  - [x] 7. Update Product Language from Worktree to Task Copy
 
   **What to do**:
   - Update visible strings and docs to match new mental model.

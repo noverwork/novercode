@@ -11,7 +11,7 @@
 ## What It Is
 
 - **Project Hub** — Manage multiple Git repos from one place
-- **Task Engine** — Each task gets its own isolated worktree
+- **Task Engine** — Each task gets its own isolated copy
 - **AI Terminal** — Built-in Claude shell, no context switching
 - **Diff Viewer** — Side-by-side code review with Monaco
 
@@ -55,10 +55,10 @@ npm run tauri build
 ```
 
 **1. Add Projects** → Point to any Git repo on your machine
-**2. Create Tasks** → Each task spawns an isolated worktree
+**2. Create Tasks** → Each task spawns an isolated copy
 **3. Code** → Use your editor (VS Code, Neovim, whatever)
 **4. Ask AI** → Built-in Claude shell for assistance
-**5. Done** → Worktree auto-cleans when task closes
+**5. Done** → Task copy auto-cleans when task closes
 
 ## The Vibe
 
@@ -70,35 +70,35 @@ npm run tauri build
 
 ## Tech Stack
 
-| Layer | Tech |
-|-------|------|
+| Layer    | Tech                         |
+| -------- | ---------------------------- |
 | Frontend | React 19 + TypeScript + Vite |
-| Styling | Tailwind CSS v4 + shadcn/ui |
-| Backend | Rust + Tauri |
-| Terminal | Alacritty emulation engine |
-| Editor | Monaco (diff viewer) |
-| Storage | Tauri store plugin |
+| Styling  | Tailwind CSS v4 + shadcn/ui  |
+| Backend  | Rust + Tauri                 |
+| Terminal | Alacritty emulation engine   |
+| Editor   | Monaco (diff viewer)         |
+| Storage  | Tauri store plugin           |
 
-## Why Worktrees?
+## Why Task Copies?
 
 ```
 project/
 ├── main/          # Your main branch
-├── task-001/      # Isolated worktree for task 1
-├── task-002/      # Isolated worktree for task 2
-└── task-003/      # Isolated worktree for task 3
+├── task-001/      # Isolated copy for task 1
+├── task-002/      # Isolated copy for task 2
+└── task-003/      # Isolated copy for task 3
 ```
 
 Each task gets its own sandbox. Context switching without `git stash` hell. Hot-swap between tasks instantly.
 
 ## Keyboard Shortcuts
 
-| Key | Action |
-|-----|--------|
-| `Cmd/Ctrl + N` | New task |
-| `Cmd/Ctrl + Enter` | Open in editor |
-| `Cmd/Ctrl + K` | Focus AI terminal |
-| `Cmd/Ctrl + D` | Toggle diff view |
+| Key                | Action            |
+| ------------------ | ----------------- |
+| `Cmd/Ctrl + N`     | New task          |
+| `Cmd/Ctrl + Enter` | Open in editor    |
+| `Cmd/Ctrl + K`     | Focus AI terminal |
+| `Cmd/Ctrl + D`     | Toggle diff view  |
 
 ## Development
 

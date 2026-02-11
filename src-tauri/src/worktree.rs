@@ -1,4 +1,5 @@
 use fs_extra::dir::{self, CopyOptions};
+use serde::Serialize;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 use tauri::{AppHandle, Emitter, Manager};
@@ -84,12 +85,6 @@ fn resolve_task_workspace_path(
   Ok(resolve_project_workspace_path(worktrees_root, project_id)?.join(&task_id))
 }
 
-/// 取得特定 project 的工作目錄根路徑
-fn get_project_workspace_path(app: &AppHandle, project_id: &str) -> Result<PathBuf, String> {
-  let worktrees_root = get_worktrees_dir(app)?;
-  resolve_project_workspace_path(&worktrees_root, project_id)
-}
-
 /// 取得特定 task 的工作目錄路徑（canonical: worktrees/{project_id}/{task_id}）
 fn get_task_workspace_path(
   app: &AppHandle,
@@ -173,7 +168,7 @@ pub fn create_worktree(
     }
   }
 
-  Err("Failed to create worktree: all strategies exhausted".to_string())
+  Err("Failed to create task copy: all strategies exhausted".to_string())
 }
 
 /// 移除 git worktree
@@ -209,7 +204,7 @@ pub fn remove_worktree(
   // 確保目錄被刪除
   if worktree_path.exists() {
     std::fs::remove_dir_all(&worktree_path)
-      .map_err(|e| format!("Failed to remove worktree dir: {e}"))?;
+      .map_err(|e| format!("Failed to remove task copy: {e}"))?;
   }
 
   Ok(())
@@ -233,69 +228,290 @@ pub fn get_task_working_dir(
   Ok(project_path)
 }
 
-/// 複製 project 到 worktrees 目錄，並發送進度事件
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum CopyProgressStatus {
+  InProgress,
+  Completed,
+  Failed,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CopyTaskError {
+  code: String,
+  message: String,
+  task_id: String,
+  project_id: String,
+  task_path: Option<String>,
+  copied_files: usize,
+  total_files: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct CopyProgressEvent {
+  task_id: String,
+  project_id: String,
+  progress: u32,
+  copied_files: usize,
+  total_files: usize,
+  status: CopyProgressStatus,
+  task_path: String,
+  error: Option<CopyTaskError>,
+}
+
+fn build_copy_task_error(
+  code: &str,
+  message: String,
+  task_id: &str,
+  project_id: &str,
+  task_path: Option<&Path>,
+  copied_files: usize,
+  total_files: usize,
+) -> CopyTaskError {
+  CopyTaskError {
+    code: code.to_string(),
+    message,
+    task_id: task_id.to_string(),
+    project_id: project_id.to_string(),
+    task_path: task_path.map(|p| p.to_string_lossy().to_string()),
+    copied_files,
+    total_files,
+  }
+}
+
+fn emit_copy_progress_event(app: &AppHandle, event: CopyProgressEvent) {
+  let _ = app.emit("copy-progress", event);
+}
+
+fn emit_copy_failure_event(app: &AppHandle, task_path: &Path, error: CopyTaskError) {
+  let progress = if error.total_files > 0 {
+    ((error.copied_files as f64 / error.total_files as f64) * 99.0).floor() as u32
+  } else {
+    0
+  };
+
+  emit_copy_progress_event(
+    app,
+    CopyProgressEvent {
+      task_id: error.task_id.clone(),
+      project_id: error.project_id.clone(),
+      progress,
+      copied_files: error.copied_files,
+      total_files: error.total_files,
+      status: CopyProgressStatus::Failed,
+      task_path: task_path.to_string_lossy().to_string(),
+      error: Some(error),
+    },
+  );
+}
+
+/// 複製 project 到 task 工作目錄，並發送 task-scoped 進度事件
 #[tauri::command]
-pub fn copy_project(
+pub fn copy_task(
   app: AppHandle,
+  task_id: String,
   project_id: String,
   project_path: String,
-) -> Result<String, String> {
-  let dest_path = get_project_workspace_path(&app, &project_id)?;
-  ensure_within_worktrees_root(&app, &dest_path)?;
-
-  // 如果目標目錄已存在，先刪除
-  if dest_path.exists() {
-    std::fs::remove_dir_all(&dest_path)
-      .map_err(|e| format!("Failed to remove existing directory: {e}"))?;
+) -> Result<String, CopyTaskError> {
+  let source_path = PathBuf::from(&project_path);
+  if !source_path.exists() || !source_path.is_dir() {
+    let error = build_copy_task_error(
+      "invalid_source_path",
+      format!("Source path does not exist or is not a directory: {project_path}"),
+      &task_id,
+      &project_id,
+      None,
+      0,
+      0,
+    );
+    emit_copy_progress_event(
+      &app,
+      CopyProgressEvent {
+        task_id: task_id.clone(),
+        project_id: project_id.clone(),
+        progress: 0,
+        copied_files: 0,
+        total_files: 0,
+        status: CopyProgressStatus::Failed,
+        task_path: String::new(),
+        error: Some(error.clone()),
+      },
+    );
+    return Err(error);
   }
 
-  // 複製選項
+  let dest_path = get_task_workspace_path(&app, &project_id, &task_id).map_err(|message| {
+    let error = build_copy_task_error(
+      "invalid_task_workspace",
+      message,
+      &task_id,
+      &project_id,
+      None,
+      0,
+      0,
+    );
+    emit_copy_progress_event(
+      &app,
+      CopyProgressEvent {
+        task_id: task_id.clone(),
+        project_id: project_id.clone(),
+        progress: 0,
+        copied_files: 0,
+        total_files: 0,
+        status: CopyProgressStatus::Failed,
+        task_path: String::new(),
+        error: Some(error.clone()),
+      },
+    );
+    error
+  })?;
+
+  ensure_within_worktrees_root(&app, &dest_path).map_err(|message| {
+    let error = build_copy_task_error(
+      "unsafe_destination",
+      message,
+      &task_id,
+      &project_id,
+      Some(&dest_path),
+      0,
+      0,
+    );
+    emit_copy_failure_event(&app, &dest_path, error.clone());
+    error
+  })?;
+
+  if let Some(parent) = dest_path.parent() {
+    std::fs::create_dir_all(parent).map_err(|e| {
+      let error = build_copy_task_error(
+        "create_destination_parent_failed",
+        format!("Failed to create task workspace parent: {e}"),
+        &task_id,
+        &project_id,
+        Some(&dest_path),
+        0,
+        0,
+      );
+      emit_copy_failure_event(&app, &dest_path, error.clone());
+      error
+    })?;
+  }
+
+  if dest_path.exists() {
+    std::fs::remove_dir_all(&dest_path).map_err(|e| {
+      let error = build_copy_task_error(
+        "cleanup_destination_failed",
+        format!("Failed to remove existing task workspace: {e}"),
+        &task_id,
+        &project_id,
+        Some(&dest_path),
+        0,
+        0,
+      );
+      emit_copy_failure_event(&app, &dest_path, error.clone());
+      error
+    })?;
+  }
+
+  let total_files = count_files(&source_path).map_err(|e| {
+    let error = build_copy_task_error(
+      "count_files_failed",
+      format!("Failed to count source files: {e}"),
+      &task_id,
+      &project_id,
+      Some(&dest_path),
+      0,
+      0,
+    );
+    emit_copy_failure_event(&app, &dest_path, error.clone());
+    error
+  })?;
+
   let mut options = CopyOptions::new();
-  options.content_only = false; // 包含 .git 等 hidden files
+  options.content_only = false;
   options.copy_inside = false;
 
-  // 計算總檔案數量（進度估算）
-  let source_path = PathBuf::from(&project_path);
-  let total_files = count_files(&source_path).map_err(|e| format!("Failed to count files: {e}"))?;
-
-  // 設置進度回調
-  let mut current_files = 0usize;
+  let mut copied_files = 0usize;
   let app_handle = app.clone();
+  let task_id_clone = task_id.clone();
   let project_id_clone = project_id.clone();
+  let task_path = dest_path.to_string_lossy().to_string();
 
   let handler = |_process_info: dir::TransitProcess| {
-    current_files += 1;
+    if total_files > 0 {
+      copied_files = (copied_files + 1).min(total_files);
+    }
 
-    // 計算進度百分比 (0-100)
     let progress = if total_files > 0 {
-      ((current_files as f64 / total_files as f64) * 100.0).min(100.0) as u32
+      ((copied_files as f64 / total_files as f64) * 99.0).floor() as u32
     } else {
-      100
+      0
     };
 
-    // 發送進度事件
-    let _ = app_handle.emit(
-      "copy-progress",
-      serde_json::json!({
-        "project_id": project_id_clone,
-        "progress": progress,
-        "copied_files": current_files,
-        "total_files": total_files
-      }),
+    emit_copy_progress_event(
+      &app_handle,
+      CopyProgressEvent {
+        task_id: task_id_clone.clone(),
+        project_id: project_id_clone.clone(),
+        progress,
+        copied_files,
+        total_files,
+        status: CopyProgressStatus::InProgress,
+        task_path: task_path.clone(),
+        error: None,
+      },
     );
 
     dir::TransitProcessResult::ContinueOrAbort
   };
 
-  // 執行複製
-  dir::copy_with_progress(&project_path, &dest_path, &options, handler)
-    .map_err(|e| format!("Failed to copy project: {e}"))?;
+  if let Err(copy_error) = dir::copy_with_progress(&project_path, &dest_path, &options, handler) {
+    let mut message = format!("Failed to copy project into task workspace: {copy_error}");
+
+    if dest_path.exists() {
+      if let Err(cleanup_error) = std::fs::remove_dir_all(&dest_path) {
+        message.push_str(&format!(
+          "; failed to cleanup partial copy: {cleanup_error}"
+        ));
+      }
+    }
+
+    let error = build_copy_task_error(
+      "copy_failed",
+      message,
+      &task_id,
+      &project_id,
+      Some(&dest_path),
+      copied_files,
+      total_files,
+    );
+    emit_copy_failure_event(&app, &dest_path, error.clone());
+    return Err(error);
+  }
+
+  let copied_files = if total_files > 0 {
+    total_files
+  } else {
+    copied_files
+  };
+  emit_copy_progress_event(
+    &app,
+    CopyProgressEvent {
+      task_id,
+      project_id,
+      progress: 100,
+      copied_files,
+      total_files,
+      status: CopyProgressStatus::Completed,
+      task_path: dest_path.to_string_lossy().to_string(),
+      error: None,
+    },
+  );
 
   Ok(dest_path.to_string_lossy().to_string())
 }
 
 /// 計算目錄中的檔案數量（遞歸）
-fn count_files(dir: &PathBuf) -> std::io::Result<usize> {
+fn count_files(dir: &Path) -> std::io::Result<usize> {
   let mut count = 0usize;
 
   for entry in std::fs::read_dir(dir)? {
@@ -303,13 +519,6 @@ fn count_files(dir: &PathBuf) -> std::io::Result<usize> {
     let path = entry.path();
 
     if path.is_dir() {
-      // 跳過 node_modules 等大目錄以加快計算
-      if let Some(name) = path.file_name() {
-        let name = name.to_string_lossy();
-        if name == "node_modules" || name == ".git" || name == "target" {
-          continue;
-        }
-      }
       count += count_files(&path)?;
     } else if path.is_file() {
       count += 1;

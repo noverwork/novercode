@@ -311,7 +311,7 @@ export function Board() {
           ) : selectedTaskId && !isWorktreeReady ? (
             <div className="flex-1 flex items-center justify-center text-[rgba(255,255,255,0.5)] font-mono gap-3">
               <div className="h-6 w-6 border-2 border-[#00FF00] border-t-transparent rounded-full animate-spin" />
-              <p>creating worktree...</p>
+              <p>copying project...</p>
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-[rgba(255,255,255,0.4)] font-mono">

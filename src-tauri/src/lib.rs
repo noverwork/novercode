@@ -145,7 +145,7 @@ pub fn run() {
       worktree::create_worktree,
       worktree::remove_worktree,
       worktree::get_task_working_dir,
-      worktree::copy_project,
+      worktree::copy_task,
       terminal::terminal_create,
       terminal::terminal_write,
       terminal::terminal_resize,
