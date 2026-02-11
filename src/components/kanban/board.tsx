@@ -274,7 +274,7 @@ export function Board() {
         )}
       </header>
 
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 overflow-hidden relative">
         {selectedTaskId ? (
           <TerminalPanel
             taskId={selectedTaskId}

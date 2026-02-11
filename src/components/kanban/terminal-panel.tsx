@@ -120,12 +120,12 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
 
   return (
     <div className="h-full flex bg-[#0a0a0a]">
-      <div className="w-48 border-r border-[rgba(255,255,255,0.15)] flex flex-col py-2 bg-[rgba(0,0,0,0.3)]">
-        <div className="flex-1 space-y-1 overflow-auto px-2">
+      <div className="w-52 border-r border-[rgba(255,255,255,0.15)] flex flex-col py-4 px-4 bg-[rgba(0,0,0,0.3)]">
+        <div className="flex-1 space-y-1 overflow-auto">
           {terminals.map((term) => (
             <div
               key={term.id}
-              className={`flex items-center gap-2 px-3 py-2 rounded-sm cursor-pointer text-xs font-mono uppercase tracking-[0.15em] transition-all ${
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-sm cursor-pointer text-xs font-mono uppercase tracking-[0.15em] transition-all ${
                 activeTerminalId === term.id
                   ? 'bg-[rgba(0,255,0,0.15)] text-[#00FF00] border border-[rgba(0,255,0,0.3)]'
                   : 'text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.8)] hover:bg-[rgba(255,255,255,0.05)]'
@@ -152,14 +152,14 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
         <button
           type="button"
           onClick={handleAddTerminal}
-          className="flex items-center gap-1.5 px-2 py-1.5 rounded-sm cursor-pointer text-xs font-mono uppercase tracking-[0.15em] text-[rgba(255,255,255,0.5)] hover:text-[#00FF00] hover:bg-[rgba(0,255,0,0.1)] transition-all border border-transparent hover:border-[rgba(0,255,0,0.2)]"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-sm cursor-pointer text-xs font-mono uppercase tracking-[0.15em] text-[rgba(255,255,255,0.5)] hover:text-[#00FF00] hover:bg-[rgba(0,255,0,0.1)] transition-all border border-transparent hover:border-[rgba(0,255,0,0.2)]"
         >
           <Plus className="h-3 w-3" />
           <span>[new]</span>
         </button>
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden p-4">
         {activeTerminal && (
           <CanvasTerminal
             key={activeTerminal.id}
