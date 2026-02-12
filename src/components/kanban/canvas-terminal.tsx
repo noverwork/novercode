@@ -2,6 +2,13 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import {
+  type CellPos,
+  extractBlockText,
+  normalizeRect,
+  pixelToCell,
+} from '@/lib/canvas-selection-utils';
+
 interface TermCell {
   c: string;
   fg: [number, number, number];
@@ -21,6 +28,7 @@ interface TerminalGrid {
   cursor_x: number;
   cursor_y: number;
   cursor_visible: boolean;
+  is_alt_screen?: boolean;
 }
 
 interface CanvasTerminalProps {
@@ -42,6 +50,13 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
   const isComposingRef = useRef(false);
   const gridRef = useRef<TerminalGrid | null>(null);
   const hasRenderedRef = useRef(false);
+  const selectionStartRef = useRef<CellPos | null>(null);
+  const selectionEndRef = useRef<CellPos | null>(null);
+  const isSelectingRef = useRef(false);
+  const isAltHeldRef = useRef(false);
+  const pointerButtonRef = useRef(0);
+  const mouseInputUnavailableRef = useRef(false);
+  const [hasSelection, setHasSelection] = useState(false);
 
   // 計算終端尺寸
   const calculateSize = useCallback(() => {
@@ -155,6 +170,204 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
           ctx.fillText(cell.c, cursorX, cursorY + 2);
         }
       }
+    }
+
+    const selectionStart = selectionStartRef.current;
+    const selectionEnd = selectionEndRef.current;
+    if (selectionStart && selectionEnd) {
+      const rect = normalizeRect(selectionStart, selectionEnd);
+      const startRow = Math.max(0, rect.startRow);
+      const endRow = Math.min(rows - 1, rect.endRow);
+      const startCol = Math.max(0, rect.startCol);
+      const endCol = Math.min(cols - 1, rect.endCol);
+
+      if (startRow <= endRow && startCol <= endCol) {
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+        for (let row = startRow; row <= endRow; row++) {
+          const x = startCol * CELL_WIDTH;
+          const y = row * CELL_HEIGHT;
+          const width = (endCol - startCol + 1) * CELL_WIDTH;
+          ctx.fillRect(x, y, width, CELL_HEIGHT);
+        }
+      }
+    }
+  }, []);
+
+  const getCellFromPointerEvent = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>): CellPos | null => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const rawCell = pixelToCell(x, y);
+
+      const currentGrid = gridRef.current;
+      const fallbackSize = calculateSize();
+      const maxCol = Math.max((currentGrid?.cols ?? fallbackSize.cols) - 1, 0);
+      const maxRow = Math.max((currentGrid?.rows ?? fallbackSize.rows) - 1, 0);
+
+      return {
+        col: Math.min(Math.max(rawCell.col, 0), maxCol),
+        row: Math.min(Math.max(rawCell.row, 0), maxRow),
+      };
+    },
+    [calculateSize]
+  );
+
+  const clearSelection = useCallback(() => {
+    selectionStartRef.current = null;
+    selectionEndRef.current = null;
+    isSelectingRef.current = false;
+    setHasSelection(false);
+    requestAnimationFrame(render);
+  }, [render]);
+
+  const getSelectedText = useCallback((): string => {
+    const currentGrid = gridRef.current;
+    const start = selectionStartRef.current;
+    const end = selectionEndRef.current;
+    if (!currentGrid || !start || !end) return '';
+
+    const rect = normalizeRect(start, end);
+    const clampedRect = {
+      startRow: Math.max(0, rect.startRow),
+      endRow: Math.min(currentGrid.rows - 1, rect.endRow),
+      startCol: Math.max(0, rect.startCol),
+      endCol: Math.min(currentGrid.cols - 1, rect.endCol),
+    };
+
+    if (clampedRect.startRow > clampedRect.endRow || clampedRect.startCol > clampedRect.endCol) {
+      return '';
+    }
+
+    return extractBlockText(currentGrid.cells, clampedRect);
+  }, []);
+
+  const handleCopySelection = useCallback(async () => {
+    const selected = getSelectedText();
+    if (!selected) return;
+
+    try {
+      await navigator.clipboard.writeText(selected);
+    } catch (err) {
+      console.error('Failed to copy selection:', err);
+    }
+  }, [getSelectedText]);
+
+  type MouseEventType = 'down' | 'move' | 'up';
+
+  const sendTerminalMouseInput = useCallback(
+    async (eventType: MouseEventType, cell: CellPos, button: number) => {
+      if (mouseInputUnavailableRef.current) return;
+
+      try {
+        await invoke('terminal_mouse_input', {
+          id: taskId,
+          eventType,
+          event_type: eventType,
+          kind: eventType,
+          col: cell.col,
+          row: cell.row,
+          button,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes('terminal_mouse_input')) {
+          mouseInputUnavailableRef.current = true;
+          return;
+        }
+        console.error('Failed to send terminal mouse input:', err);
+      }
+    },
+    [taskId]
+  );
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      inputRef.current?.focus();
+      isAltHeldRef.current = e.altKey;
+      pointerButtonRef.current = e.button;
+
+      const cell = getCellFromPointerEvent(e);
+      if (!cell) return;
+
+      e.currentTarget.setPointerCapture(e.pointerId);
+
+      if (e.altKey) {
+        e.preventDefault();
+        selectionStartRef.current = cell;
+        selectionEndRef.current = cell;
+        isSelectingRef.current = true;
+        setHasSelection(true);
+        requestAnimationFrame(render);
+        return;
+      }
+
+      if (hasSelection) {
+        clearSelection();
+      }
+
+      if (gridRef.current?.is_alt_screen) {
+        void sendTerminalMouseInput('down', cell, e.button);
+      }
+    },
+    [clearSelection, getCellFromPointerEvent, hasSelection, render, sendTerminalMouseInput]
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      isAltHeldRef.current = e.altKey;
+      const cell = getCellFromPointerEvent(e);
+      if (!cell) return;
+
+      if (isSelectingRef.current) {
+        e.preventDefault();
+        selectionEndRef.current = cell;
+        requestAnimationFrame(render);
+        return;
+      }
+
+      if (gridRef.current?.is_alt_screen && e.buttons !== 0) {
+        void sendTerminalMouseInput('move', cell, pointerButtonRef.current);
+      }
+    },
+    [getCellFromPointerEvent, render, sendTerminalMouseInput]
+  );
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      isAltHeldRef.current = e.altKey;
+      const cell = getCellFromPointerEvent(e);
+
+      if (isSelectingRef.current) {
+        e.preventDefault();
+        if (cell) {
+          selectionEndRef.current = cell;
+        }
+        isSelectingRef.current = false;
+        setHasSelection(Boolean(selectionStartRef.current && selectionEndRef.current));
+        requestAnimationFrame(render);
+      } else if (cell && gridRef.current?.is_alt_screen) {
+        void sendTerminalMouseInput('up', cell, pointerButtonRef.current);
+      }
+
+      pointerButtonRef.current = 0;
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    },
+    [getCellFromPointerEvent, render, sendTerminalMouseInput]
+  );
+
+  const handlePointerCancel = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    isSelectingRef.current = false;
+    isAltHeldRef.current = false;
+    pointerButtonRef.current = 0;
+
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
     }
   }, []);
 
@@ -347,6 +560,10 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
   const handleWheel = useCallback(
     async (e: React.WheelEvent) => {
       e.preventDefault();
+      if (isSelectingRef.current || e.altKey || isAltHeldRef.current) {
+        return;
+      }
+
       // deltaY > 0 表示向下滾動，需要往回看歷史（負數）
       // deltaY < 0 表示向上滾動，需要往前看（正數）
       const lines = Math.sign(e.deltaY) * -3; // 每次滾動 3 行
@@ -403,9 +620,24 @@ export function CanvasTerminal({ taskId, workingDir }: CanvasTerminalProps) {
       >
         <canvas
           ref={canvasRef}
-          className="absolute inset-0"
-          style={{ imageRendering: 'pixelated' }}
+          className="absolute inset-0 cursor-text"
+          style={{ imageRendering: 'pixelated', touchAction: 'none' }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
         />
+        {hasSelection && (
+          <button
+            type="button"
+            className="absolute right-2 top-2 z-10 rounded border border-[#22c55e] bg-[#0a0a0a] px-2 py-1 font-mono text-xs text-[#22c55e] hover:bg-[#0f1f0f]"
+            onClick={() => {
+              void handleCopySelection();
+            }}
+          >
+            Copy Selection
+          </button>
+        )}
         {!isRunning && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]">
             <div

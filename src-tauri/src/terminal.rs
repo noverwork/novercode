@@ -258,6 +258,40 @@ pub fn build_startup_args(cwd: &Option<String>) -> Vec<String> {
   args
 }
 
+fn encode_mouse_sgr(
+  event: &str,
+  button: u8,
+  col: u16,
+  row: u16,
+  modifiers: u8,
+) -> Result<Vec<u8>, String> {
+  if col == 0 || row == 0 {
+    return Err("Mouse coordinates must be 1-based".to_string());
+  }
+
+  if event == "wheel" && button != 64 && button != 65 {
+    return Err(format!("Unsupported wheel button code: {button}"));
+  }
+
+  let mut code = u16::from(button) + u16::from(modifiers);
+
+  if event == "drag" {
+    code += 32;
+  }
+
+  if code > u8::MAX as u16 {
+    return Err(format!("Mouse button code overflow: {code}"));
+  }
+
+  let suffix = match event {
+    "press" | "drag" | "wheel" => 'M',
+    "release" => 'm',
+    _ => return Err(format!("Unsupported mouse event: {event}")),
+  };
+
+  Ok(format!("\u{1b}[<{};{};{}{}", code, col, row, suffix).into_bytes())
+}
+
 // ============ Tauri Commands ============
 
 #[tauri::command]
@@ -457,6 +491,30 @@ pub fn terminal_write(id: String, data: Vec<u8>) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn terminal_mouse_input(
+  id: String,
+  event: String,
+  button: u8,
+  col: u16,
+  row: u16,
+  modifiers: u8,
+) -> Result<(), String> {
+  let sessions = SESSIONS.lock();
+  let session = sessions
+    .get(&id)
+    .ok_or_else(|| "Session not found".to_string())?;
+
+  let data = encode_mouse_sgr(&event, button, col, row, modifiers)?;
+
+  session
+    .sender
+    .send(Msg::Input(data.into()))
+    .map_err(|e| format!("Failed to send mouse input: {e:?}"))?;
+
+  Ok(())
+}
+
+#[tauri::command]
 pub fn terminal_resize(id: String, cols: u16, rows: u16) -> Result<(), String> {
   let sessions = SESSIONS.lock();
   let session = sessions
@@ -506,7 +564,7 @@ pub fn terminal_kill(id: String) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-  use super::build_startup_args;
+  use super::{build_startup_args, encode_mouse_sgr};
 
   #[test]
   fn starts_plain_shell_by_default() {
@@ -527,6 +585,33 @@ mod tests {
 
     let cwd_args = build_startup_args(&Some("/tmp/worktree".to_string()));
     assert!(cwd_args.contains(&"-c".to_string()));
+  }
+
+  #[test]
+  fn mouse_protocol_left_press_at_col1_row1() {
+    let bytes = encode_mouse_sgr("press", 0, 1, 1, 0).expect("left press should encode");
+    assert_eq!(bytes, b"\x1b[<0;1;1M");
+  }
+
+  #[test]
+  fn mouse_protocol_left_release_at_col10_row5() {
+    let bytes = encode_mouse_sgr("release", 0, 10, 5, 0).expect("left release should encode");
+    assert_eq!(bytes, b"\x1b[<0;10;5m");
+  }
+
+  #[test]
+  fn mouse_protocol_drag_with_left_button() {
+    let bytes = encode_mouse_sgr("drag", 0, 7, 3, 0).expect("drag should encode");
+    assert_eq!(bytes, b"\x1b[<32;7;3M");
+  }
+
+  #[test]
+  fn mouse_protocol_wheel_up_and_down() {
+    let wheel_up = encode_mouse_sgr("wheel", 64, 4, 9, 0).expect("wheel up should encode");
+    let wheel_down = encode_mouse_sgr("wheel", 65, 4, 9, 0).expect("wheel down should encode");
+
+    assert_eq!(wheel_up, b"\x1b[<64;4;9M");
+    assert_eq!(wheel_down, b"\x1b[<65;4;9M");
   }
 }
 #[tauri::command]

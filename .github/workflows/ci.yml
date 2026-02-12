@@ -26,6 +26,33 @@ jobs:
       - name: Run check:all
         run: npm run check:all
 
+  test:
+    name: Test
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Run E2E tests
+        run: npm run test:e2e -- --list
+        continue-on-error: true
+
   rust-clippy:
     name: Rust Clippy
     runs-on: ubuntu-latest
@@ -122,7 +149,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tauri-version: "2"
+          tauri-version: '2'
           target: ${{ matrix.target }}
           args: --config src-tauri/tauri.conf.json
         continue-on-error: ${{ matrix.platform == 'macos-latest' }}

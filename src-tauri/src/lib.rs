@@ -149,6 +149,7 @@ pub fn run() {
       worktree::copy_task,
       terminal::terminal_create,
       terminal::terminal_write,
+      terminal::terminal_mouse_input,
       terminal::terminal_resize,
       terminal::terminal_kill,
       terminal::terminal_scroll,
