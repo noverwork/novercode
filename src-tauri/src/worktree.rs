@@ -353,7 +353,7 @@ pub fn remove_worktree(
 
 /// 取得 task 的工作目錄
 #[tauri::command]
-pub fn get_task_working_dir(
+pub async fn get_task_working_dir(
   app: AppHandle,
   task_id: String,
   project_id: String,
@@ -368,8 +368,16 @@ pub fn get_task_working_dir(
 
   let mut resolved_workspace_path = task_copy_path.clone();
 
-  if let Some(path) = project_path.as_deref() {
-    let source_name = Path::new(path)
+  if let Some(path) = project_path {
+    let source_path = PathBuf::from(&path);
+    if !source_path.exists() || !source_path.is_dir() {
+      return Err(format!(
+        "Source path does not exist or is not a directory: {}",
+        source_path.display()
+      ));
+    }
+
+    let source_name = source_path
       .file_name()
       .map(|name| name.to_string_lossy().to_string());
 
@@ -390,18 +398,19 @@ pub fn get_task_working_dir(
       }
     }
 
-    let source_path = PathBuf::from(path);
-    if !source_path.exists() || !source_path.is_dir() {
-      return Err(format!(
-        "Source path does not exist or is not a directory: {}",
-        source_path.display()
-      ));
-    }
-
     std::fs::create_dir_all(&resolved_workspace_path)
       .map_err(|e| format!("Failed to prepare task workspace directory: {e}"))?;
 
-    rsync_project_to_workspace(&source_path, &resolved_workspace_path)?;
+    let resolved_path_clone = resolved_workspace_path.clone();
+    let source_path_clone = source_path.clone();
+
+    async_runtime::spawn_blocking(move || {
+      rsync_project_to_workspace(&source_path_clone, &resolved_path_clone)
+    })
+    .await
+    .map_err(|e| format!("Failed to spawn sync task: {e}"))?;
+
+    return Ok(Some(resolved_workspace_path.to_string_lossy().to_string()));
   }
 
   Ok(Some(resolved_workspace_path.to_string_lossy().to_string()))
