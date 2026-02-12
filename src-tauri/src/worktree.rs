@@ -401,15 +401,22 @@ pub async fn get_task_working_dir(
     std::fs::create_dir_all(&resolved_workspace_path)
       .map_err(|e| format!("Failed to prepare task workspace directory: {e}"))?;
 
-    let resolved_path_clone = resolved_workspace_path.clone();
-    let source_path_clone = source_path.clone();
+    let needs_sync = std::fs::read_dir(&resolved_workspace_path)
+      .map_err(|e| format!("Failed to inspect task workspace directory: {e}"))?
+      .next()
+      .is_none();
 
-    async_runtime::spawn_blocking(move || {
-      rsync_project_to_workspace(&source_path_clone, &resolved_path_clone)
-    })
-    .await
-    .map_err(|e| format!("Failed to spawn sync task: {e}"))?
-    .map_err(|e| format!("Failed to sync task workspace: {e}"))?;
+    if needs_sync {
+      let resolved_path_clone = resolved_workspace_path.clone();
+      let source_path_clone = source_path.clone();
+
+      async_runtime::spawn_blocking(move || {
+        rsync_project_to_workspace(&source_path_clone, &resolved_path_clone)
+      })
+      .await
+      .map_err(|e| format!("Failed to spawn sync task: {e}"))?
+      .map_err(|e| format!("Failed to sync task workspace: {e}"))?;
+    }
 
     return Ok(Some(resolved_workspace_path.to_string_lossy().to_string()));
   }
