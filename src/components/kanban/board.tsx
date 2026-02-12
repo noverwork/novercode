@@ -100,8 +100,8 @@ export function Board() {
 
   const isWorktreeReady = useMemo(() => {
     if (!selectedTaskId) return false;
-    return worktree.status === 'ready' && worktree.taskId === selectedTaskId;
-  }, [worktree, selectedTaskId]);
+    return worktree.status === 'ready' && worktree.taskId === selectedTaskId && Boolean(workingDir);
+  }, [worktree, selectedTaskId, workingDir]);
 
   const selectedTask = useMemo(
     () => allTasks.find((t) => t.id === selectedTaskId) || null,
@@ -164,7 +164,7 @@ export function Board() {
           setWorktree({
             status: 'ready',
             taskId: id,
-            dir: path || project.path || null,
+            dir: path || null,
           });
         }
       } catch (e) {
@@ -173,7 +173,7 @@ export function Board() {
           setWorktree({
             status: 'ready',
             taskId: id,
-            dir: project.path || null,
+            dir: null,
           });
         }
       }

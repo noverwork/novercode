@@ -408,7 +408,8 @@ pub async fn get_task_working_dir(
       rsync_project_to_workspace(&source_path_clone, &resolved_path_clone)
     })
     .await
-    .map_err(|e| format!("Failed to spawn sync task: {e}"))?;
+    .map_err(|e| format!("Failed to spawn sync task: {e}"))?
+    .map_err(|e| format!("Failed to sync task workspace: {e}"))?;
 
     return Ok(Some(resolved_workspace_path.to_string_lossy().to_string()));
   }

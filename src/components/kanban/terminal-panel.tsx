@@ -161,7 +161,7 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
       </div>
 
       <div className="flex-1 overflow-hidden p-4">
-        {activeTerminal && (
+        {activeTerminal && isTaskReady && workingDir && (
           <CanvasTerminal
             key={activeTerminal.id}
             taskId={activeTerminal.id}
