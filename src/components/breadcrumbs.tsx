@@ -68,24 +68,20 @@ export function Breadcrumbs({
               <>
                 <div className="space-y-1">
                   {projects.map((project) => (
-                    <div
+                    <button
                       key={project.id}
-                      className={`group flex items-center gap-2 px-3 py-2 font-mono text-sm transition-colors ${
+                      onClick={() => {
+                        onProjectSelect(project.id);
+                        setOpenMenu(null);
+                      }}
+                      className={`group flex items-center gap-2 px-3 py-2 font-mono text-sm transition-colors w-full text-left ${
                         currentProject?.id === project.id
                           ? 'bg-[rgba(255,255,255,0.1)] text-[#FFFFFF]'
                           : 'text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#FFFFFF]'
                       }`}
                     >
                       <Folder className="h-3 w-3 shrink-0" />
-                      <button
-                        onClick={() => {
-                          onProjectSelect(project.id);
-                          setOpenMenu(null);
-                        }}
-                        className="truncate flex-1 text-left"
-                      >
-                        {project.name}
-                      </button>
+                      <span className="truncate flex-1">{project.name}</span>
                       {onDeleteProject && (
                         <Button
                           size="icon"
@@ -99,7 +95,7 @@ export function Breadcrumbs({
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
                 <div className="border-t border-[rgba(255,255,255,0.15)] pt-2 mt-2">
@@ -145,31 +141,27 @@ export function Breadcrumbs({
             ) : (
               <div className="space-y-1">
                 {tasks.map((task) => (
-                  <div
+                  <button
                     key={task.id}
-                    className={`group flex items-start gap-2 px-3 py-2 font-mono text-sm transition-colors ${
+                    onClick={() => {
+                      onTaskSelect(task.id);
+                      setOpenMenu(null);
+                    }}
+                    className={`group flex items-center gap-2 px-3 py-2 font-mono text-sm transition-colors w-full text-left ${
                       selectedTask?.id === task.id
                         ? 'bg-[rgba(255,255,255,0.1)] text-[#FFFFFF] border border-[rgba(255,255,255,0.3)]'
                         : 'text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#FFFFFF] border border-transparent'
                     }`}
                   >
-                    <span className="text-[rgba(255,255,255,0.4)] shrink-0 mt-0.5">→</span>
-                    <button
-                      onClick={() => {
-                        onTaskSelect(task.id);
-                        setOpenMenu(null);
-                      }}
-                      className="flex-1 min-w-0 text-left"
-                    >
-                      <div>
-                        <p className="truncate">{task.title}</p>
-                        {task.description && (
-                          <p className="text-xs text-[rgba(255,255,255,0.4)] truncate mt-1">
-                            {task.description}
-                          </p>
-                        )}
-                      </div>
-                    </button>
+                    <span className="text-[rgba(255,255,255,0.4)] shrink-0">→</span>
+                    <div className="truncate flex-1">
+                      {task.title}
+                      {task.description && (
+                        <span className="text-xs text-[rgba(255,255,255,0.4)] truncate ml-2">
+                          {task.description}
+                        </span>
+                      )}
+                    </div>
                     {onDeleteTask && (
                       <Button
                         variant="ghost"
@@ -183,7 +175,7 @@ export function Breadcrumbs({
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     )}
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
