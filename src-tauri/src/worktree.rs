@@ -210,7 +210,7 @@ pub fn create_worktree(
   Err("Failed to create task copy: all strategies exhausted".to_string())
 }
 
-/// 移除 git worktree
+/// 移除 git worktree（同步版本，供內部使用）
 pub fn remove_task_copy(
   app: &AppHandle,
   task_id: &str,
@@ -235,55 +235,6 @@ pub fn remove_task_copy(
     },
   );
 
-  if let Some(path) = project_path {
-    if is_git_repo(path) {
-      let _ = Command::new("git")
-        .current_dir(path)
-        .args([
-          "worktree",
-          "remove",
-          "--force",
-          worktree_path.to_string_lossy().as_ref(),
-        ])
-        .output();
-    }
-  }
-
-  emit_delete_progress_event(
-    app,
-    DeleteProgressEvent {
-      task_id: task_id.to_string(),
-      project_id: project_id.to_string(),
-      progress: 50,
-      status: DeleteProgressStatus::InProgress,
-      error: None,
-    },
-  );
-
-  if worktree_path.exists() {
-    std::fs::remove_dir_all(&worktree_path).map_err(|e| {
-      let error = DeleteTaskError {
-        code: "remove_dir_failed".to_string(),
-        message: format!("Failed to remove task copy for {task_id}: {e}"),
-        task_id: task_id.to_string(),
-        project_id: project_id.to_string(),
-      };
-      emit_delete_failure_event(app, error.clone());
-      error.message
-    })?;
-  }
-
-  emit_delete_progress_event(
-    app,
-    DeleteProgressEvent {
-      task_id: task_id.to_string(),
-      project_id: project_id.to_string(),
-      progress: 100,
-      status: DeleteProgressStatus::Completed,
-      error: None,
-    },
-  );
-
   // 如果有 project_path 且是 git repo，用 git worktree remove
   if let Some(path) = project_path {
     if is_git_repo(path) {
@@ -299,7 +250,6 @@ pub fn remove_task_copy(
     }
   }
 
-  // 進度 50% - 正在刪除資料夾
   emit_delete_progress_event(
     app,
     DeleteProgressEvent {
@@ -338,6 +288,30 @@ pub fn remove_task_copy(
   );
 
   Ok(())
+}
+
+/// 異步刪除 task 工作目錄（Tauri command）
+#[tauri::command]
+pub async fn delete_task_workspace(
+  app: AppHandle,
+  task_id: String,
+  project_id: String,
+  project_path: Option<String>,
+) -> Result<(), String> {
+  let app_clone = app.clone();
+  let task_id_clone = task_id.clone();
+  let project_id_clone = project_id.clone();
+
+  async_runtime::spawn_blocking(move || {
+    remove_task_copy(
+      &app_clone,
+      &task_id_clone,
+      &project_id_clone,
+      project_path.as_deref(),
+    )
+  })
+  .await
+  .map_err(|e| format!("Failed to spawn delete task: {e}"))?
 }
 
 /// 移除 git worktree

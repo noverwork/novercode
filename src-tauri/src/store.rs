@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::sync::{Mutex, MutexGuard, PoisonError};
-use tauri::{AppHandle, Manager, State};
+use tauri::{async_runtime, AppHandle, Manager, State};
 use tauri_plugin_store::StoreExt;
 
 use crate::{terminal, worktree};
@@ -180,14 +180,18 @@ pub fn add_task(
 }
 
 #[tauri::command]
-pub fn delete_task(app: AppHandle, state: State<StoreState>, id: String) -> Result<(), String> {
-  delete_task_atomic(app, state, id)
+pub async fn delete_task(
+  app: AppHandle,
+  state: State<'_, StoreState>,
+  id: String,
+) -> Result<(), String> {
+  delete_task_atomic(app, state, id).await
 }
 
 #[tauri::command]
-pub fn delete_task_atomic(
+pub async fn delete_task_atomic(
   app: AppHandle,
-  state: State<StoreState>,
+  state: State<'_, StoreState>,
   id: String,
 ) -> Result<(), String> {
   let task = lock_or_recover(&state.tasks)
@@ -204,8 +208,22 @@ pub fn delete_task_atomic(
   terminal::terminal_kill(task.id.clone())
     .map_err(|e| format!("Failed to kill terminal for task {}: {e}", task.id))?;
 
-  worktree::remove_task_copy(&app, &task.id, &task.project_id, project_path.as_deref())
-    .map_err(|e| format!("Failed to cleanup task workspace for {}: {e}", task.id))?;
+  let app_clone = app.clone();
+  let task_id_clone = task.id.clone();
+  let project_id_clone = task.project_id.clone();
+  let project_path_clone = project_path.clone();
+
+  async_runtime::spawn_blocking(move || {
+    worktree::remove_task_copy(
+      &app_clone,
+      &task_id_clone,
+      &project_id_clone,
+      project_path_clone.as_deref(),
+    )
+  })
+  .await
+  .map_err(|e| format!("Failed to spawn delete task: {e}"))?
+  .map_err(|e| format!("Failed to cleanup task workspace for {}: {e}", task.id))?;
 
   let (removed_index, removed_task) = {
     let mut tasks = lock_or_recover(&state.tasks);
