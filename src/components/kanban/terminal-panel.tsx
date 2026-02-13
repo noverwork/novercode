@@ -1,12 +1,14 @@
-import { invoke } from '@tauri-apps/api/core';
 import { Plus, Terminal, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { CanvasTerminal } from './canvas-terminal';
+import { terminalSessionManager } from '@/lib/terminal-session-manager';
+
+import { XtermTerminal } from './xterm-terminal';
 
 interface TerminalInfo {
   id: string;
   name: string;
+  ordinal: number;
 }
 
 interface TaskTerminalState {
@@ -24,6 +26,20 @@ const EMPTY_STATE: TaskTerminalState = {
   terminals: [],
   activeTerminalId: null,
 };
+
+const TASK_TERMINAL_ID_SEPARATOR = ':terminal:';
+
+function buildTerminalSessionId(taskId: string, ordinal: number): string {
+  if (ordinal <= 1) {
+    return taskId;
+  }
+
+  return `${taskId}${TASK_TERMINAL_ID_SEPARATOR}${ordinal}`;
+}
+
+function getNextTerminalOrdinal(terminals: TerminalInfo[]): number {
+  return terminals.reduce((max, terminal) => Math.max(max, terminal.ordinal), 0) + 1;
+}
 
 export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanelProps) {
   const [taskTerminals, setTaskTerminals] = useState<Record<string, TaskTerminalState>>({});
@@ -44,11 +60,12 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
           return prev;
         }
 
-        const initialId = crypto.randomUUID();
+        const initialOrdinal = 1;
+        const initialId = buildTerminalSessionId(taskId, initialOrdinal);
         return {
           ...prev,
           [taskId]: {
-            terminals: [{ id: initialId, name: 'Terminal 1' }],
+            terminals: [{ id: initialId, name: 'Terminal 1', ordinal: initialOrdinal }],
             activeTerminalId: initialId,
           },
         };
@@ -79,12 +96,13 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
   const handleAddTerminal = useCallback(() => {
     setTaskTerminals((prev) => {
       const current = prev[taskId] ?? EMPTY_STATE;
-      const newId = crypto.randomUUID();
-      const newName = `Terminal ${current.terminals.length + 1}`;
+      const nextOrdinal = getNextTerminalOrdinal(current.terminals);
+      const newId = buildTerminalSessionId(taskId, nextOrdinal);
+      const newName = `Terminal ${nextOrdinal}`;
       return {
         ...prev,
         [taskId]: {
-          terminals: [...current.terminals, { id: newId, name: newName }],
+          terminals: [...current.terminals, { id: newId, name: newName, ordinal: nextOrdinal }],
           activeTerminalId: newId,
         },
       };
@@ -93,7 +111,7 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
 
   const handleCloseTerminal = useCallback(
     (id: string) => {
-      invoke('terminal_kill', { id }).catch(console.error);
+      void terminalSessionManager.destroySession(id);
 
       setTaskTerminals((prev) => {
         const current = prev[taskId] ?? EMPTY_STATE;
@@ -162,10 +180,11 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
 
       <div className="flex-1 overflow-hidden p-4">
         {activeTerminal && isTaskReady && workingDir && (
-          <CanvasTerminal
+          <XtermTerminal
             key={activeTerminal.id}
             taskId={activeTerminal.id}
             workingDir={workingDir}
+            terminalSessionId={activeTerminal.id}
           />
         )}
       </div>

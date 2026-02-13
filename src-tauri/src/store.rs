@@ -205,8 +205,8 @@ pub async fn delete_task_atomic(
     .find(|p| p.id == task.project_id)
     .and_then(|p| p.path.clone());
 
-  terminal::terminal_kill(task.id.clone())
-    .map_err(|e| format!("Failed to kill terminal for task {}: {e}", task.id))?;
+  terminal::terminal_kill_task_sessions(task.id.clone())
+    .map_err(|e| format!("Failed to kill terminals for task {}: {e}", task.id))?;
 
   let app_clone = app.clone();
   let task_id_clone = task.id.clone();

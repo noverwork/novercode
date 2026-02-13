@@ -1,13 +1,16 @@
-use alacritty_terminal::event::{Event, EventListener, WindowSize};
+use alacritty_terminal::event::{Event, EventListener, OnResize, WindowSize};
 use alacritty_terminal::event_loop::{EventLoop, EventLoopSender, Msg};
 use alacritty_terminal::grid::{Dimensions, Scroll};
 use alacritty_terminal::sync::FairMutex;
 use alacritty_terminal::term::test::TermSize;
 use alacritty_terminal::term::{Config as TermConfig, Term};
 use alacritty_terminal::tty::{self, Options as PtyOptions};
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine;
 use parking_lot::Mutex;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::io::{self, Read};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::{Mutex as StdMutex, MutexGuard as StdMutexGuard, PoisonError};
@@ -46,6 +49,11 @@ pub struct TerminalGrid {
   pub cursor_visible: bool,
 }
 
+#[derive(Clone, Serialize)]
+struct TerminalOutputPayload {
+  data: String,
+}
+
 /// Event listener that forwards events to Tauri
 struct TauriEventListener {
   id: String,
@@ -71,6 +79,99 @@ impl EventListener for TauriEventListener {
   }
 }
 
+struct RawOutputForwardingReader<T: tty::EventedPty> {
+  pty: *mut T,
+  event_name: String,
+  app_handle: AppHandle,
+}
+
+unsafe impl<T: tty::EventedPty + Send> Send for RawOutputForwardingReader<T> {}
+
+impl<T: tty::EventedPty> Read for RawOutputForwardingReader<T> {
+  fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+    let read = unsafe { (&mut *self.pty).reader().read(buf) }?;
+
+    if read > 0 {
+      let payload = TerminalOutputPayload {
+        data: BASE64_STANDARD.encode(&buf[..read]),
+      };
+      let _ = self.app_handle.emit(&self.event_name, payload);
+    }
+
+    Ok(read)
+  }
+}
+
+struct RawOutputForwardingPty<T: tty::EventedPty> {
+  pty: Box<T>,
+  reader: RawOutputForwardingReader<T>,
+}
+
+impl<T: tty::EventedPty> RawOutputForwardingPty<T> {
+  fn new(pty: T, id: String, app_handle: AppHandle) -> Self {
+    let mut pty = Box::new(pty);
+    let reader = RawOutputForwardingReader {
+      pty: pty.as_mut() as *mut T,
+      event_name: format!("terminal-output-{id}"),
+      app_handle,
+    };
+
+    Self { pty, reader }
+  }
+}
+
+unsafe impl<T: tty::EventedPty + Send> Send for RawOutputForwardingPty<T> {}
+
+impl<T: tty::EventedPty> tty::EventedReadWrite for RawOutputForwardingPty<T> {
+  type Reader = RawOutputForwardingReader<T>;
+  type Writer = T::Writer;
+
+  unsafe fn register(
+    &mut self,
+    poll: &Arc<polling::Poller>,
+    interest: polling::Event,
+    poll_opts: polling::PollMode,
+  ) -> io::Result<()> {
+    unsafe { self.pty.register(poll, interest, poll_opts) }
+  }
+
+  fn reregister(
+    &mut self,
+    poll: &Arc<polling::Poller>,
+    interest: polling::Event,
+    poll_opts: polling::PollMode,
+  ) -> io::Result<()> {
+    self.pty.reregister(poll, interest, poll_opts)
+  }
+
+  fn deregister(&mut self, poll: &Arc<polling::Poller>) -> io::Result<()> {
+    self.pty.deregister(poll)
+  }
+
+  fn reader(&mut self) -> &mut Self::Reader {
+    &mut self.reader
+  }
+
+  fn writer(&mut self) -> &mut Self::Writer {
+    self.pty.writer()
+  }
+}
+
+impl<T: tty::EventedPty> tty::EventedPty for RawOutputForwardingPty<T> {
+  fn next_child_event(&mut self) -> Option<tty::ChildEvent> {
+    self.pty.next_child_event()
+  }
+}
+
+impl<T> OnResize for RawOutputForwardingPty<T>
+where
+  T: tty::EventedPty + OnResize,
+{
+  fn on_resize(&mut self, window_size: WindowSize) {
+    self.pty.on_resize(window_size);
+  }
+}
+
 /// Terminal session state
 struct TerminalSession {
   term: Arc<FairMutex<Term<TauriEventListener>>>,
@@ -84,6 +185,16 @@ struct TerminalSession {
 lazy_static::lazy_static! {
     static ref SESSIONS: Mutex<HashMap<String, TerminalSession>> = Mutex::new(HashMap::new());
     static ref DIRTY_FLAGS: Mutex<HashMap<String, Arc<std::sync::atomic::AtomicBool>>> = Mutex::new(HashMap::new());
+}
+
+const TASK_TERMINAL_ID_SEPARATOR: &str = ":terminal:";
+
+fn is_session_bound_to_task(session_id: &str, task_id: &str) -> bool {
+  if session_id == task_id {
+    return true;
+  }
+
+  session_id.starts_with(&format!("{task_id}{TASK_TERMINAL_ID_SEPARATOR}"))
 }
 
 /// Convert alacritty color to RGB array
@@ -294,6 +405,16 @@ fn encode_mouse_sgr(
 
 // ============ Tauri Commands ============
 
+/// Creates or reuses a terminal session for `id`.
+///
+/// # Idempotence
+/// - If a session with the same `id` already exists and `cwd` matches,
+///   this returns early and keeps the existing PTY/event loop alive.
+/// - If a session with the same `id` exists but `cwd` differs,
+///   the old session is killed and a new one is created.
+///
+/// The existence check runs under the global `SESSIONS` mutex, so concurrent
+/// calls for the same `id` are serialized at this decision point.
 #[tauri::command]
 pub async fn terminal_create(
   app_handle: AppHandle,
@@ -407,6 +528,7 @@ pub async fn terminal_create(
     error!(id = %id, error = %e, "PTY creation failed");
     format!("PTY creation failed: {e}")
   })?;
+  let pty = RawOutputForwardingPty::new(pty, id.clone(), app_handle.clone());
 
   // Event listener for event loop
   let event_listener = TauriEventListener {
@@ -562,9 +684,29 @@ pub fn terminal_kill(id: String) -> Result<(), String> {
   Ok(())
 }
 
+#[tauri::command]
+pub fn terminal_kill_task_sessions(task_id: String) -> Result<usize, String> {
+  let session_ids: Vec<String> = {
+    let sessions = SESSIONS.lock();
+    sessions
+      .keys()
+      .filter(|session_id| is_session_bound_to_task(session_id.as_str(), &task_id))
+      .cloned()
+      .collect()
+  };
+
+  let mut killed_count = 0;
+  for session_id in session_ids {
+    terminal_kill(session_id)?;
+    killed_count += 1;
+  }
+
+  Ok(killed_count)
+}
+
 #[cfg(test)]
 mod tests {
-  use super::{build_startup_args, encode_mouse_sgr};
+  use super::{build_startup_args, encode_mouse_sgr, is_session_bound_to_task};
 
   #[test]
   fn starts_plain_shell_by_default() {
@@ -612,6 +754,24 @@ mod tests {
 
     assert_eq!(wheel_up, b"\x1b[<64;4;9M");
     assert_eq!(wheel_down, b"\x1b[<65;4;9M");
+  }
+
+  #[test]
+  fn task_session_match_primary_id() {
+    assert!(is_session_bound_to_task("task-123", "task-123"));
+  }
+
+  #[test]
+  fn task_session_match_secondary_id() {
+    assert!(is_session_bound_to_task("task-123:terminal:2", "task-123"));
+  }
+
+  #[test]
+  fn task_session_does_not_match_other_task() {
+    assert!(!is_session_bound_to_task(
+      "task-1234:terminal:2",
+      "task-123"
+    ));
   }
 }
 #[tauri::command]

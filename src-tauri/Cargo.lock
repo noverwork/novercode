@@ -2235,10 +2235,12 @@ name = "novercode"
 version = "1.0.1"
 dependencies = [
  "alacritty_terminal",
+ "base64 0.22.1",
  "dirs 5.0.1",
  "fs_extra",
  "lazy_static",
  "parking_lot",
+ "polling",
  "serde",
  "serde_json",
  "tauri",

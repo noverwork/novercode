@@ -152,6 +152,7 @@ pub fn run() {
       terminal::terminal_mouse_input,
       terminal::terminal_resize,
       terminal::terminal_kill,
+      terminal::terminal_kill_task_sessions,
       terminal::terminal_scroll,
     ])
     .run(tauri::generate_context!())
