@@ -59,11 +59,11 @@ type DeleteProgressData = {
   error: DeleteTaskError | null;
 };
 
-async function killTerminal(terminalId: string) {
+async function killTaskTerminals(taskId: string) {
   try {
-    await invoke('terminal_kill', { id: terminalId });
+    await invoke('terminal_kill_task_sessions', { taskId });
   } catch (e) {
-    console.error('Failed to kill terminal:', e);
+    console.error('Failed to kill task terminals:', e);
   }
 }
 
@@ -87,9 +87,19 @@ export function Board() {
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [addProjectOpen, setAddProjectOpen] = useState(false);
   const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+  const [progressOperation, setProgressOperation] = useState<'copy' | 'delete' | null>(null);
   const [copyProgress, setCopyProgress] = useState<CopyProgressData | undefined>(undefined);
   const [deleteProgress, setDeleteProgress] = useState<DeleteProgressData | undefined>(undefined);
   const selectionRequestRef = useRef(0);
+
+  const handleProgressDialogOpenChange = useCallback((open: boolean) => {
+    setProgressDialogOpen(open);
+    if (!open) {
+      setProgressOperation(null);
+      setCopyProgress(undefined);
+      setDeleteProgress(undefined);
+    }
+  }, []);
 
   const workingDir = useMemo(() => {
     if (worktree.status === 'ready' && worktree.taskId === selectedTaskId) {
@@ -114,7 +124,7 @@ export function Board() {
 
     if (project) {
       for (const t of projectTasks) {
-        await killTerminal(t.id);
+        await killTaskTerminals(t.id);
         try {
           await invoke('remove_worktree', {
             taskId: t.id,
@@ -183,6 +193,8 @@ export function Board() {
 
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
+      setProgressOperation('delete');
+      setCopyProgress(undefined);
       setDeleteProgress(undefined);
       setProgressDialogOpen(true);
 
@@ -198,6 +210,7 @@ export function Board() {
           typeof e === 'string' ? e : e instanceof Error ? e.message : JSON.stringify(e);
         window.alert(`Task delete failed: ${message}`);
         setProgressDialogOpen(false);
+        setProgressOperation(null);
       }
     },
     [deleteTask, selectedTaskId]
@@ -214,7 +227,18 @@ export function Board() {
 
       const project = projects.find((p) => p.id === currentProjectId);
       if (project?.path) {
-        setCopyProgress(undefined);
+        setProgressOperation('copy');
+        setDeleteProgress(undefined);
+        setCopyProgress({
+          task_id: newTaskId,
+          project_id: project.id,
+          progress: 0,
+          copied_files: 0,
+          total_files: 0,
+          status: 'in_progress',
+          task_path: '',
+          error: null,
+        });
         setProgressDialogOpen(true);
 
         try {
@@ -226,6 +250,7 @@ export function Board() {
         } catch (e) {
           console.error('Failed to copy project:', e);
           setProgressDialogOpen(false);
+          setProgressOperation(null);
         }
       }
 
@@ -257,6 +282,7 @@ export function Board() {
             if (progressTimeout) clearTimeout(progressTimeout);
             progressTimeout = setTimeout(() => {
               setProgressDialogOpen(false);
+              setProgressOperation(null);
             }, 500);
           }
         });
@@ -269,6 +295,7 @@ export function Board() {
             if (progressTimeout) clearTimeout(progressTimeout);
             progressTimeout = setTimeout(() => {
               setProgressDialogOpen(false);
+              setProgressOperation(null);
             }, 500);
           }
         });
@@ -396,9 +423,9 @@ export function Board() {
       />
       <ProgressDialog
         open={progressDialogOpen}
-        onOpenChange={setProgressDialogOpen}
-        progress={deleteProgress || copyProgress}
-        operation={deleteProgress ? 'delete' : 'copy'}
+        onOpenChange={handleProgressDialogOpenChange}
+        progress={progressOperation === 'delete' ? deleteProgress : copyProgress}
+        operation={progressOperation ?? undefined}
       />
     </div>
   );

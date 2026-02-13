@@ -221,6 +221,16 @@ pub fn remove_task_copy(
   ensure_within_worktrees_root(app, &worktree_path)?;
 
   if !worktree_path.exists() {
+    emit_delete_progress_event(
+      app,
+      DeleteProgressEvent {
+        task_id: task_id.to_string(),
+        project_id: project_id.to_string(),
+        progress: 100,
+        status: DeleteProgressStatus::Completed,
+        error: None,
+      },
+    );
     return Ok(());
   }
 
