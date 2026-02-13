@@ -18,6 +18,10 @@ dist-ssr
 # Sisyphus work state
 .sisyphus/
 
+# Test outputs
+playwright-report/
+test-results/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

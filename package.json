@@ -24,7 +24,6 @@
     "lint:all": "npm run lint && npm run lint:rust",
     "check": "npm run lint:all && npm run build",
     "prepare": "husky",
-    "qa:task-copy-smoke": "./scripts/qa-task-copy-smoke.sh",
     "test": "vitest",
     "test:unit": "vitest",
     "test:e2e": "playwright test",
