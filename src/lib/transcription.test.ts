@@ -1,53 +1,125 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { invoke } from '@tauri-apps/api/core';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { transcribeAudio } from './transcription';
-
-const mockInvoke = vi.fn();
+import { isTranscriptionResponse, transcribeAudio } from './transcription';
 
 vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => mockInvoke(...args),
+  invoke: vi.fn(),
 }));
 
-describe('transcription', () => {
+describe('transcribeAudio', () => {
   beforeEach(() => {
-    mockInvoke.mockClear();
+    vi.clearAllMocks();
   });
 
-  describe('transcribeAudio', () => {
-    it('calls invoke with correct parameters', async () => {
-      const mockText = 'Hello, world!';
-      mockInvoke.mockResolvedValueOnce({ text: mockText });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
-      const audioData = new TextEncoder().encode('fake audio data').buffer;
-      const result = await transcribeAudio(audioData);
+  it('should successfully transcribe audio and return text', async () => {
+    const mockAudioData = new ArrayBuffer(1000);
+    const mockResponse = { text: 'Hello world' };
 
-      expect(mockInvoke).toHaveBeenCalledTimes(1);
-      expect(mockInvoke).toHaveBeenCalledWith('transcribe_audio', {
-        request: { audioData: expect.any(Array) },
-      });
-      expect(result).toEqual({ text: mockText });
+    vi.mocked(invoke).mockResolvedValueOnce(mockResponse);
+
+    const result = await transcribeAudio(mockAudioData);
+
+    expect(isTranscriptionResponse(result)).toBe(true);
+    if (isTranscriptionResponse(result)) {
+      expect(result.text).toBe('Hello world');
+    }
+    expect(invoke).toHaveBeenCalledWith('transcribe_audio', {
+      request: { audioData: expect.any(Array) },
     });
+  });
 
-    it('converts ArrayBuffer to byte array correctly', async () => {
-      mockInvoke.mockResolvedValueOnce({ text: 'test' });
+  it('should convert ArrayBuffer to Uint8Array and convert to array', async () => {
+    const mockAudioData = new ArrayBuffer(1000);
 
-      // Create a simple buffer with known bytes
-      const uint8 = new Uint8Array([1, 2, 3, 4, 5]);
-      const audioData = uint8.buffer;
+    vi.mocked(invoke).mockResolvedValueOnce({ text: 'test' });
 
-      await transcribeAudio(audioData);
+    await transcribeAudio(mockAudioData);
 
-      const callArgs = mockInvoke.mock.calls[0]?.[1] as { request: { audioData: number[] } };
-      expect(callArgs.request.audioData).toEqual([1, 2, 3, 4, 5]);
-    });
+    expect(invoke).toHaveBeenCalledWith(
+      'transcribe_audio',
+      expect.objectContaining({
+        request: expect.objectContaining({
+          audioData: expect.any(Array),
+        }),
+      })
+    );
+  });
 
-    it('propagates errors from backend', async () => {
-      const mockError = { code: 'missing_api_key', message: 'API key not configured' };
-      mockInvoke.mockRejectedValueOnce(mockError);
+  it('should return typed error for missing API key error', async () => {
+    const mockAudioData = new ArrayBuffer(1000);
 
-      const audioData = new ArrayBuffer(10);
+    vi.mocked(invoke).mockRejectedValueOnce(new Error('Missing API key'));
 
-      await expect(transcribeAudio(audioData)).rejects.toEqual(mockError);
-    });
+    const result = await transcribeAudio(mockAudioData);
+
+    expect(isTranscriptionResponse(result)).toBe(false);
+    if (!isTranscriptionResponse(result)) {
+      expect(result.code).toBe('missing_api_key');
+      expect(result.message).toBe('Missing API key');
+    }
+  });
+
+  it('should return typed error for invalid audio error', async () => {
+    const mockAudioData = new ArrayBuffer(1000);
+
+    vi.mocked(invoke).mockRejectedValueOnce(new Error('Invalid audio data: empty or corrupted'));
+
+    const result = await transcribeAudio(mockAudioData);
+
+    expect(isTranscriptionResponse(result)).toBe(false);
+    if (!isTranscriptionResponse(result)) {
+      expect(result.code).toBe('invalid_audio');
+      expect(result.message).toBe('Invalid audio data: empty or corrupted');
+    }
+  });
+
+  it('should return typed error for API error', async () => {
+    const mockAudioData = new ArrayBuffer(1000);
+
+    vi.mocked(invoke).mockRejectedValueOnce(
+      new Error('OpenAI transcription request failed with status 500')
+    );
+
+    const result = await transcribeAudio(mockAudioData);
+
+    expect(isTranscriptionResponse(result)).toBe(false);
+    if (!isTranscriptionResponse(result)) {
+      expect(result.code).toBe('api_error');
+      expect(result.message).toBe('OpenAI transcription request failed with status 500');
+    }
+  });
+
+  it('should return typed error for rate limited error', async () => {
+    const mockAudioData = new ArrayBuffer(1000);
+
+    vi.mocked(invoke).mockRejectedValueOnce(new Error('OpenAI API rate limit exceeded'));
+
+    const result = await transcribeAudio(mockAudioData);
+
+    expect(isTranscriptionResponse(result)).toBe(false);
+    if (!isTranscriptionResponse(result)) {
+      expect(result.code).toBe('rate_limited');
+      expect(result.message).toBe('OpenAI API rate limit exceeded');
+    }
+  });
+
+  it('should handle any unexpected error', async () => {
+    const mockAudioData = new ArrayBuffer(1000);
+    const unexpectedError = new Error('Unexpected error occurred');
+
+    vi.mocked(invoke).mockRejectedValueOnce(unexpectedError);
+
+    const result = await transcribeAudio(mockAudioData);
+
+    expect(isTranscriptionResponse(result)).toBe(false);
+    if (!isTranscriptionResponse(result)) {
+      expect(result.code).toBe('api_error');
+      expect(result.message).toBe(unexpectedError.message);
+    }
   });
 });

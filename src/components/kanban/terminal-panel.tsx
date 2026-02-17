@@ -1,6 +1,7 @@
 import { Plus, Terminal, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useVoiceInput } from '@/hooks/use-active-terminal-session';
 import { terminalSessionManager } from '@/lib/terminal-session-manager';
 
 import { XtermTerminal } from './xterm-terminal';
@@ -42,6 +43,7 @@ function getNextTerminalOrdinal(terminals: TerminalInfo[]): number {
 }
 
 export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanelProps) {
+  const { setActiveSessionId } = useVoiceInput();
   const [taskTerminals, setTaskTerminals] = useState<Record<string, TaskTerminalState>>({});
   const currentState = taskTerminals[taskId] ?? EMPTY_STATE;
   const terminals = currentState.terminals;
@@ -81,16 +83,18 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
     (terminalId: string) => {
       setTaskTerminals((prev) => {
         const current = prev[taskId] ?? EMPTY_STATE;
-        return {
+        const newState = {
           ...prev,
           [taskId]: {
             terminals: current.terminals,
             activeTerminalId: terminalId,
           },
         };
+        setActiveSessionId(terminalId);
+        return newState;
       });
     },
-    [taskId]
+    [taskId, setActiveSessionId]
   );
 
   const handleAddTerminal = useCallback(() => {
@@ -99,15 +103,17 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
       const nextOrdinal = getNextTerminalOrdinal(current.terminals);
       const newId = buildTerminalSessionId(taskId, nextOrdinal);
       const newName = `Terminal ${nextOrdinal}`;
-      return {
+      const newState = {
         ...prev,
         [taskId]: {
           terminals: [...current.terminals, { id: newId, name: newName, ordinal: nextOrdinal }],
           activeTerminalId: newId,
         },
       };
+      setActiveSessionId(newId);
+      return newState;
     });
-  }, [taskId]);
+  }, [taskId, setActiveSessionId]);
 
   const handleCloseTerminal = useCallback(
     (id: string) => {

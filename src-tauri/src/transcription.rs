@@ -1,8 +1,12 @@
 use crate::store::{Settings, StoreState};
 use serde::{Deserialize, Serialize};
+use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::time::Duration;
 use tauri::State;
 
 pub const DEFAULT_BASE_URL: &str = "https://api.openai.com";
+const TRANSCRIPTION_MODEL: &str = "gpt-4o-transcribe";
+const MAX_ATTEMPTS: u8 = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranscriptionRequest {
@@ -20,6 +24,34 @@ pub enum TranscriptionError {
   InvalidAudio,
   ApiError(String),
   RateLimited,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAiTranscriptionResponse {
+  text: String,
+}
+
+fn lock_or_recover<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+  mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+fn map_status_code_to_error(status_code: u16, error_body: Option<String>) -> TranscriptionError {
+  match status_code {
+    400 | 413 => TranscriptionError::InvalidAudio,
+    401 => TranscriptionError::MissingApiKey,
+    429 => TranscriptionError::RateLimited,
+    503 => TranscriptionError::ApiError("Service temporarily unavailable".to_string()),
+    _ => {
+      let details = error_body
+        .filter(|body| !body.trim().is_empty())
+        .map(|body| format!(": {body}"))
+        .unwrap_or_default();
+
+      TranscriptionError::ApiError(format!(
+        "OpenAI transcription request failed with status {status_code}{details}"
+      ))
+    }
+  }
 }
 
 pub(crate) fn get_openai_config(
@@ -41,16 +73,73 @@ pub(crate) fn get_openai_config(
 
 #[tauri::command]
 pub async fn transcribe_audio(
-  _state: State<'_, StoreState>,
+  state: State<'_, StoreState>,
   request: TranscriptionRequest,
 ) -> Result<TranscriptionResponse, TranscriptionError> {
   if request.audio_data.is_empty() {
     return Err(TranscriptionError::InvalidAudio);
   }
 
-  Ok(TranscriptionResponse {
-    text: "placeholder".to_string(),
-  })
+  let (api_key, base_url) = {
+    let settings = lock_or_recover(&state.settings);
+    get_openai_config(&settings)?
+  };
+
+  let endpoint = format!("{}/v1/audio/transcriptions", base_url.trim_end_matches('/'));
+  let client = reqwest::Client::new();
+
+  for attempt in 0..MAX_ATTEMPTS {
+    let audio_part = reqwest::multipart::Part::bytes(request.audio_data.clone())
+      .file_name("audio.webm")
+      .mime_str("audio/webm")
+      .map_err(|error| {
+        TranscriptionError::ApiError(format!("Failed to prepare audio payload: {error}"))
+      })?;
+
+    let form = reqwest::multipart::Form::new()
+      .part("file", audio_part)
+      .text("model", TRANSCRIPTION_MODEL.to_string());
+
+    let response = client
+      .post(&endpoint)
+      .bearer_auth(&api_key)
+      .multipart(form)
+      .send()
+      .await
+      .map_err(|error| {
+        TranscriptionError::ApiError(format!("Failed to call OpenAI transcription API: {error}"))
+      })?;
+
+    if response.status().is_success() {
+      let payload = response
+        .json::<OpenAiTranscriptionResponse>()
+        .await
+        .map_err(|error| {
+          TranscriptionError::ApiError(format!(
+            "Failed to parse OpenAI transcription response: {error}"
+          ))
+        })?;
+
+      return Ok(TranscriptionResponse { text: payload.text });
+    }
+
+    let status_code = response.status().as_u16();
+    let error_body = response.text().await.ok();
+    let should_retry = matches!(status_code, 429 | 503);
+    let is_last_attempt = attempt + 1 == MAX_ATTEMPTS;
+
+    if should_retry && !is_last_attempt {
+      let backoff_seconds = 1_u64 << attempt;
+      tokio::time::sleep(Duration::from_secs(backoff_seconds)).await;
+      continue;
+    }
+
+    return Err(map_status_code_to_error(status_code, error_body));
+  }
+
+  Err(TranscriptionError::ApiError(
+    "OpenAI transcription failed after maximum attempts".to_string(),
+  ))
 }
 
 #[cfg(test)]

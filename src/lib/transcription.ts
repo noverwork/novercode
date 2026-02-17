@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 
+import { terminalSessionManager } from './terminal-session-manager';
+
 export interface TranscriptionResponse {
   text: string;
 }
@@ -15,14 +17,49 @@ export interface TranscriptionError {
   message: string;
 }
 
-/**
- * Transcribe audio data using OpenAI gpt-4o-transcribe model.
- * @param audioData - Audio data as ArrayBuffer (will be converted to bytes array)
- * @returns Transcription response with text
- */
-export async function transcribeAudio(audioData: ArrayBuffer): Promise<TranscriptionResponse> {
-  const audioArray = Array.from(new Uint8Array(audioData));
-  return invoke<TranscriptionResponse>('transcribe_audio', {
-    request: { audioData: audioArray },
-  });
+export type TranscriptionResult = TranscriptionResponse | TranscriptionError;
+
+export function isTranscriptionResponse(
+  result: TranscriptionResult
+): result is TranscriptionResponse {
+  return 'text' in result;
 }
+
+export async function transcribeAudio(audioData: ArrayBuffer): Promise<TranscriptionResult> {
+  try {
+    const byteData = Array.from(new Uint8Array(audioData));
+
+    const response = await invoke<TranscriptionResponse>('transcribe_audio', {
+      request: { audioData: byteData },
+    });
+
+    return response;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+
+    return {
+      code: mapErrorToErrorCode(errorMessage),
+      message: errorMessage,
+    };
+  }
+}
+
+function mapErrorToErrorCode(message: string): TranscriptionErrorCode {
+  const lowerMessage = message.toLowerCase();
+
+  if (lowerMessage.includes('missing api key') || lowerMessage.includes('api key not configured')) {
+    return 'missing_api_key';
+  }
+
+  if (lowerMessage.includes('invalid audio') || lowerMessage.includes('empty or corrupted')) {
+    return 'invalid_audio';
+  }
+
+  if (lowerMessage.includes('rate limit')) {
+    return 'rate_limited';
+  }
+
+  return 'api_error';
+}
+
+export { terminalSessionManager };
