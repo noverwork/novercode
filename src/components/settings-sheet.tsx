@@ -13,8 +13,6 @@ interface Settings {
   llmApiKey?: string | null;
   llmBaseUrl?: string | null;
   llmModel?: string | null;
-  asrModel?: string | null;
-  asrLanguage?: string | null;
 }
 
 interface SettingsSheetProps {
@@ -31,8 +29,6 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
   const [llmApiKeyInput, setLlmApiKeyInput] = useState('');
   const [llmBaseUrlInput, setLlmBaseUrlInput] = useState('');
   const [llmModelInput, setLlmModelInput] = useState('');
-  const [asrModelInput, setAsrModelInput] = useState('');
-  const [asrLanguageInput, setAsrLanguageInput] = useState('');
   const [showLlmApiKey, setShowLlmApiKey] = useState(false);
   const [savingAi, setSavingAi] = useState(false);
   const [currentVersion, setCurrentVersion] = useState<string>('');
@@ -53,8 +49,6 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
           setLlmApiKeyInput(s.llmApiKey || '');
           setLlmBaseUrlInput(s.llmBaseUrl || '');
           setLlmModelInput(s.llmModel || '');
-          setAsrModelInput(s.asrModel || '');
-          setAsrLanguageInput(s.asrLanguage || '');
         })
         .catch(console.error);
     }
@@ -63,9 +57,7 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
   const aiDirty =
     llmApiKeyInput !== (settings.llmApiKey || '') ||
     llmBaseUrlInput !== (settings.llmBaseUrl || '') ||
-    llmModelInput !== (settings.llmModel || '') ||
-    asrModelInput !== (settings.asrModel || '') ||
-    asrLanguageInput !== (settings.asrLanguage || '');
+    llmModelInput !== (settings.llmModel || '');
 
   const saveAiSettings = async () => {
     const payload: Record<string, string | null> = {};
@@ -79,12 +71,6 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
     if (llmModelInput !== (settings.llmModel || '')) {
       payload.llmModel = llmModelInput || null;
     }
-    if (asrModelInput !== (settings.asrModel || '')) {
-      payload.asrModel = asrModelInput || null;
-    }
-    if (asrLanguageInput !== (settings.asrLanguage || '')) {
-      payload.asrLanguage = asrLanguageInput || null;
-    }
 
     if (Object.keys(payload).length === 0) {
       return;
@@ -97,8 +83,6 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
       setLlmApiKeyInput(updated.llmApiKey || '');
       setLlmBaseUrlInput(updated.llmBaseUrl || '');
       setLlmModelInput(updated.llmModel || '');
-      setAsrModelInput(updated.asrModel || '');
-      setAsrLanguageInput(updated.asrLanguage || '');
     } catch (err) {
       console.error('Failed to save AI settings:', err);
     } finally {
@@ -302,47 +286,6 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
                   value={llmModelInput}
                   onChange={(e) => setLlmModelInput(e.target.value)}
                   placeholder="gpt-4o-mini"
-                  className="font-mono text-xs"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <h3 className="text-xs text-[rgba(255,255,255,0.6)] font-mono uppercase tracking-wider font-[Helvetica_Neue,Arial,sans-serif]">
-              ASR
-            </h3>
-            <div className="p-3 rounded border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.02)] space-y-3">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="asr-model"
-                  className="text-xs font-mono text-[rgba(255,255,255,0.5)]"
-                >
-                  Model
-                </Label>
-                <Input
-                  id="asr-model"
-                  name="asrModel"
-                  value={asrModelInput}
-                  onChange={(e) => setAsrModelInput(e.target.value)}
-                  placeholder="whisper-1"
-                  className="font-mono text-xs"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label
-                  htmlFor="asr-language"
-                  className="text-xs font-mono text-[rgba(255,255,255,0.5)]"
-                >
-                  Language
-                </Label>
-                <Input
-                  id="asr-language"
-                  name="asrLanguage"
-                  value={asrLanguageInput}
-                  onChange={(e) => setAsrLanguageInput(e.target.value)}
-                  placeholder="zh"
                   className="font-mono text-xs"
                 />
               </div>

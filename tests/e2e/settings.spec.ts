@@ -20,7 +20,6 @@ test.describe('Settings Persistence', () => {
     await expect(page.getByText('Settings')).toBeVisible();
     await expect(page.getByText('Version')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'OpenAI' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'ASR' })).toBeVisible();
   });
 
   test('OpenAI fields are present and editable', async ({ page }) => {
@@ -41,22 +40,6 @@ test.describe('Settings Persistence', () => {
     await expect(apiKeyInput).toHaveValue('sk-test-key-12345');
     await expect(baseUrlInput).toHaveValue('https://api.openai.com');
     await expect(modelInput).toHaveValue('gpt-4o-mini');
-  });
-
-  test('ASR fields are present and editable', async ({ page }) => {
-    await openSettings(page);
-
-    const asrModelInput = page.locator('input[name="asrModel"]');
-    const asrLanguageInput = page.locator('input[name="asrLanguage"]');
-
-    await expect(asrModelInput).toBeVisible();
-    await expect(asrLanguageInput).toBeVisible();
-
-    await asrModelInput.fill('whisper-1');
-    await asrLanguageInput.fill('zh');
-
-    await expect(asrModelInput).toHaveValue('whisper-1');
-    await expect(asrLanguageInput).toHaveValue('zh');
   });
 
   test('API key field is masked by default', async ({ page }) => {
