@@ -1,7 +1,9 @@
 import { Plus, Terminal, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useVoiceInput } from '@/hooks/use-active-terminal-session';
+import { VoiceInputButton } from '@/components/voice-input-button';
+import { useActiveTerminalSession } from '@/hooks/use-active-terminal-session';
+import { useVoiceToTerminal } from '@/hooks/use-voice-to-terminal';
 import { terminalSessionManager } from '@/lib/terminal-session-manager';
 
 import { XtermTerminal } from './xterm-terminal';
@@ -43,7 +45,8 @@ function getNextTerminalOrdinal(terminals: TerminalInfo[]): number {
 }
 
 export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanelProps) {
-  const { setActiveSessionId } = useVoiceInput();
+  const { setActiveSessionId } = useActiveTerminalSession();
+  const { transcribeAndInsert } = useVoiceToTerminal();
   const [taskTerminals, setTaskTerminals] = useState<Record<string, TaskTerminalState>>({});
   const currentState = taskTerminals[taskId] ?? EMPTY_STATE;
   const terminals = currentState.terminals;
@@ -181,6 +184,10 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
               )}
             </div>
           ))}
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.15)]">
+          <VoiceInputButton onTranscriptReady={transcribeAndInsert} disabled={!activeTerminalId} />
         </div>
       </div>
 
