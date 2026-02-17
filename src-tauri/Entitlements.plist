@@ -5,5 +5,8 @@
     <!-- Allow debugger to attach (for development) -->
     <key>com.apple.security.get-task-allowed</key>
     <true/>
+    <!-- Allow microphone access for voice input -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
 </dict>
 </plist>

@@ -19,7 +19,15 @@ const SETTINGS_KEY: &str = "settings";
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
   #[serde(default)]
-  pub claude_path: Option<String>,
+  pub llm_api_key: Option<String>,
+  #[serde(default)]
+  pub llm_base_url: Option<String>,
+  #[serde(default)]
+  pub llm_model: Option<String>,
+  #[serde(default)]
+  pub asr_model: Option<String>,
+  #[serde(default)]
+  pub asr_language: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -267,12 +275,36 @@ pub fn get_settings(state: State<StoreState>) -> Settings {
 pub fn update_settings(
   app: AppHandle,
   state: State<StoreState>,
-  claude_path: Option<String>,
+  llm_api_key: Option<Option<String>>,
+  llm_base_url: Option<Option<String>>,
+  llm_model: Option<Option<String>>,
+  asr_model: Option<Option<String>>,
+  asr_language: Option<Option<String>>,
 ) -> Result<Settings, String> {
   let mut settings = lock_or_recover(&state.settings);
-  settings.claude_path = claude_path;
+
+  if let Some(value) = llm_api_key {
+    settings.llm_api_key = value;
+  }
+
+  if let Some(value) = llm_base_url {
+    settings.llm_base_url = value;
+  }
+
+  if let Some(value) = llm_model {
+    settings.llm_model = value;
+  }
+
+  if let Some(value) = asr_model {
+    settings.asr_model = value;
+  }
+
+  if let Some(value) = asr_language {
+    settings.asr_language = value;
+  }
+
   let updated = settings.clone();
-  drop(settings); // release lock before save
+  drop(settings);
   save_to_store(&app, &state)?;
   Ok(updated)
 }

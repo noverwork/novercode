@@ -443,47 +443,23 @@ pub async fn terminal_create(
     terminal_kill(id.clone())?;
   }
 
-  // === Get claude path from settings ===
-  let settings = lock_or_recover_std(&state.settings);
-  let settings_claude_path = settings.claude_path.clone();
-  drop(settings);
-
-  // Resolve claude path:
-  // 1. Use settings if configured
-  // 2. Try `which claude`
-  // 3. Fall back to "claude" (may fail in production)
-  let claude_path = settings_claude_path.and_then(|path| {
-    if std::path::Path::new(&path).exists() {
-      info!(id = %id, claude_path = %path, "Using claude from settings");
-      Some(path)
-    } else {
-      warn!(id = %id, path = %path, "Claude path in settings doesn't exist, falling back");
-      None
-    }
-  });
-
-  let claude_path = claude_path.or_else(|| {
-    // Try which claude
-    let which_result = std::process::Command::new("which").arg("claude").output();
-    match which_result {
-      Ok(output) if output.status.success() => {
-        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+  // Resolve claude path via which, fall back to "claude"
+  let claude_path = std::process::Command::new("which")
+    .arg("claude")
+    .output()
+    .ok()
+    .filter(|o| o.status.success())
+    .and_then(|o| {
+      let path = String::from_utf8_lossy(&o.stdout).trim().to_string();
+      if path.is_empty() {
+        None
+      } else {
         info!(id = %id, claude_path = %path, "Found claude via which");
         Some(path)
       }
-      Ok(_) => {
-        warn!(id = %id, "which claude failed - command not found");
-        None
-      }
-      Err(e) => {
-        error!(id = %id, error = %e, "which command failed");
-        None
-      }
-    }
-  });
+    });
 
   let claude_cmd = claude_path.as_deref().unwrap_or("claude");
-  // ====================================
 
   let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
   info!(id = %id, shell = %shell, claude_cmd = %claude_cmd, "Creating terminal");

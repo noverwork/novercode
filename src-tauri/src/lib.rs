@@ -1,5 +1,7 @@
+pub mod agent;
 pub mod store;
 pub mod terminal;
+pub mod transcription;
 pub mod worktree;
 
 use serde::Serialize;
@@ -133,6 +135,7 @@ pub fn run() {
       open_folder,
       get_changed_files,
       get_file_diff,
+      agent::chat,
       store::get_projects,
       store::add_project,
       store::delete_project,
@@ -154,6 +157,7 @@ pub fn run() {
       terminal::terminal_kill,
       terminal::terminal_kill_task_sessions,
       terminal::terminal_scroll,
+      transcription::transcribe_audio,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

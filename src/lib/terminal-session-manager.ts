@@ -28,6 +28,12 @@ interface TerminalSessionRecord {
     cols: number;
     rows: number;
   };
+  mouseHandlers: {
+    mousedown: (e: MouseEvent) => void;
+    mouseup: (e: MouseEvent) => void;
+    mousemove: (e: MouseEvent) => void;
+    wheel: (e: WheelEvent) => void;
+  } | null;
 }
 
 function decodeBase64Bytes(base64: string): Uint8Array {
@@ -83,6 +89,7 @@ class TerminalSessionManager {
         cols: terminal.cols,
         rows: terminal.rows,
       },
+      mouseHandlers: null,
     };
 
     this.sessions.set(sessionId, session);
@@ -237,6 +244,20 @@ class TerminalSessionManager {
       session.lastReportedSize = { cols, rows };
     } catch (error) {
       console.error('Failed to resize terminal:', error);
+    }
+  }
+
+  async insertText(sessionId: string, text: string): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return;
+    }
+
+    const bytes = Array.from(textEncoder.encode(text));
+    try {
+      await invoke('terminal_write', { id: sessionId, data: bytes });
+    } catch (error) {
+      console.error('Failed to write to terminal:', error);
     }
   }
 }

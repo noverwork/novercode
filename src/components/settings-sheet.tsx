@@ -1,6 +1,6 @@
 import { getVersion } from '@tauri-apps/api/app';
 import { invoke } from '@tauri-apps/api/core';
-import { Download, RefreshCw, RotateCcw, Settings, Terminal } from 'lucide-react';
+import { Download, Eye, EyeOff, RefreshCw, RotateCcw, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useUpdate } from '@/hooks/use-update';
 
 interface Settings {
-  claudePath?: string | null;
+  llmApiKey?: string | null;
+  llmBaseUrl?: string | null;
+  llmModel?: string | null;
+  asrModel?: string | null;
+  asrLanguage?: string | null;
 }
 
 interface SettingsSheetProps {
@@ -24,8 +28,13 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
   const setOpen = onOpenChange || setInternalOpen;
 
   const [settings, setSettings] = useState<Settings>({});
-  const [claudePathInput, setClaudePathInput] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [llmApiKeyInput, setLlmApiKeyInput] = useState('');
+  const [llmBaseUrlInput, setLlmBaseUrlInput] = useState('');
+  const [llmModelInput, setLlmModelInput] = useState('');
+  const [asrModelInput, setAsrModelInput] = useState('');
+  const [asrLanguageInput, setAsrLanguageInput] = useState('');
+  const [showLlmApiKey, setShowLlmApiKey] = useState(false);
+  const [savingAi, setSavingAi] = useState(false);
   const [currentVersion, setCurrentVersion] = useState<string>('');
 
   useEffect(() => {
@@ -41,23 +50,59 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
       invoke<Settings>('get_settings')
         .then((s) => {
           setSettings(s);
-          setClaudePathInput(s.claudePath || '');
+          setLlmApiKeyInput(s.llmApiKey || '');
+          setLlmBaseUrlInput(s.llmBaseUrl || '');
+          setLlmModelInput(s.llmModel || '');
+          setAsrModelInput(s.asrModel || '');
+          setAsrLanguageInput(s.asrLanguage || '');
         })
         .catch(console.error);
     }
   }, [open]);
 
-  const saveClaudePath = async () => {
-    setSaving(true);
+  const aiDirty =
+    llmApiKeyInput !== (settings.llmApiKey || '') ||
+    llmBaseUrlInput !== (settings.llmBaseUrl || '') ||
+    llmModelInput !== (settings.llmModel || '') ||
+    asrModelInput !== (settings.asrModel || '') ||
+    asrLanguageInput !== (settings.asrLanguage || '');
+
+  const saveAiSettings = async () => {
+    const payload: Record<string, string | null> = {};
+
+    if (llmApiKeyInput !== (settings.llmApiKey || '')) {
+      payload.llmApiKey = llmApiKeyInput || null;
+    }
+    if (llmBaseUrlInput !== (settings.llmBaseUrl || '')) {
+      payload.llmBaseUrl = llmBaseUrlInput || null;
+    }
+    if (llmModelInput !== (settings.llmModel || '')) {
+      payload.llmModel = llmModelInput || null;
+    }
+    if (asrModelInput !== (settings.asrModel || '')) {
+      payload.asrModel = asrModelInput || null;
+    }
+    if (asrLanguageInput !== (settings.asrLanguage || '')) {
+      payload.asrLanguage = asrLanguageInput || null;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return;
+    }
+
+    setSavingAi(true);
     try {
-      const updated = await invoke<Settings>('update_settings', {
-        claudePath: claudePathInput || null,
-      });
+      const updated = await invoke<Settings>('update_settings', payload);
       setSettings(updated);
+      setLlmApiKeyInput(updated.llmApiKey || '');
+      setLlmBaseUrlInput(updated.llmBaseUrl || '');
+      setLlmModelInput(updated.llmModel || '');
+      setAsrModelInput(updated.asrModel || '');
+      setAsrLanguageInput(updated.asrLanguage || '');
     } catch (err) {
-      console.error('Failed to save settings:', err);
+      console.error('Failed to save AI settings:', err);
     } finally {
-      setSaving(false);
+      setSavingAi(false);
     }
   };
 
@@ -193,39 +238,123 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
             </div>
           </div>
 
-          {/* Claude Section */}
           <div className="space-y-3">
             <h3 className="text-xs text-[rgba(255,255,255,0.6)] font-mono uppercase tracking-wider font-[Helvetica_Neue,Arial,sans-serif]">
-              <Terminal className="h-3 w-3 inline mr-1" />
-              Claude
+              OpenAI
             </h3>
             <div className="p-3 rounded border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.02)] space-y-3">
               <div className="space-y-2">
                 <Label
-                  htmlFor="claude-path"
+                  htmlFor="llm-api-key"
                   className="text-xs font-mono text-[rgba(255,255,255,0.5)]"
                 >
-                  Claude Executable Path
+                  API Key
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="llm-api-key"
+                    name="llmApiKey"
+                    type={showLlmApiKey ? 'text' : 'password'}
+                    value={llmApiKeyInput}
+                    onChange={(e) => setLlmApiKeyInput(e.target.value)}
+                    placeholder="sk-..."
+                    className="font-mono text-xs pr-10"
+                  />
+                  <button
+                    type="button"
+                    data-testid="toggle-llm-api-key-visibility"
+                    aria-label={showLlmApiKey ? 'Hide API key' : 'Show API key'}
+                    onClick={() => setShowLlmApiKey((prev) => !prev)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[rgba(255,255,255,0.5)] hover:text-[#FFFFFF]"
+                  >
+                    {showLlmApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="llm-base-url"
+                  className="text-xs font-mono text-[rgba(255,255,255,0.5)]"
+                >
+                  Base URL
                 </Label>
                 <Input
-                  id="claude-path"
-                  value={claudePathInput}
-                  onChange={(e) => setClaudePathInput(e.target.value)}
-                  placeholder="/Users/xxx/.asdf/installs/nodejs/.../bin/claude"
+                  id="llm-base-url"
+                  name="llmBaseUrl"
+                  value={llmBaseUrlInput}
+                  onChange={(e) => setLlmBaseUrlInput(e.target.value)}
+                  placeholder="https://api.openai.com"
                   className="font-mono text-xs"
                 />
-                <p className="text-xs font-mono text-[rgba(255,255,255,0.4)]">
-                  Leave empty to use PATH. Required for production builds.
-                </p>
               </div>
-              {claudePathInput !== (settings.claudePath || '') && (
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="llm-model"
+                  className="text-xs font-mono text-[rgba(255,255,255,0.5)]"
+                >
+                  Model
+                </Label>
+                <Input
+                  id="llm-model"
+                  name="llmModel"
+                  value={llmModelInput}
+                  onChange={(e) => setLlmModelInput(e.target.value)}
+                  placeholder="gpt-4o-mini"
+                  className="font-mono text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-xs text-[rgba(255,255,255,0.6)] font-mono uppercase tracking-wider font-[Helvetica_Neue,Arial,sans-serif]">
+              ASR
+            </h3>
+            <div className="p-3 rounded border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.02)] space-y-3">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="asr-model"
+                  className="text-xs font-mono text-[rgba(255,255,255,0.5)]"
+                >
+                  Model
+                </Label>
+                <Input
+                  id="asr-model"
+                  name="asrModel"
+                  value={asrModelInput}
+                  onChange={(e) => setAsrModelInput(e.target.value)}
+                  placeholder="whisper-1"
+                  className="font-mono text-xs"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="asr-language"
+                  className="text-xs font-mono text-[rgba(255,255,255,0.5)]"
+                >
+                  Language
+                </Label>
+                <Input
+                  id="asr-language"
+                  name="asrLanguage"
+                  value={asrLanguageInput}
+                  onChange={(e) => setAsrLanguageInput(e.target.value)}
+                  placeholder="zh"
+                  className="font-mono text-xs"
+                />
+              </div>
+
+              {aiDirty && (
                 <Button
                   size="sm"
                   className="w-full bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.8)] border border-[rgba(255,255,255,0.3)]"
-                  onClick={saveClaudePath}
-                  disabled={saving}
+                  onClick={saveAiSettings}
+                  disabled={savingAi}
                 >
-                  {saving ? 'Saving...' : 'Save Path'}
+                  {savingAi ? 'Saving...' : 'Save AI Settings'}
                 </Button>
               )}
             </div>

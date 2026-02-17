@@ -9,6 +9,7 @@ import { AddTaskDialog } from '@/components/kanban/add-task-dialog';
 import { DiffView } from '@/components/kanban/diff-view';
 import { ProgressDialog } from '@/components/kanban/progress-dialog';
 import { TerminalPanel } from '@/components/kanban/terminal-panel';
+import { SettingsSheet } from '@/components/settings-sheet';
 import { Button } from '@/components/ui/button';
 import { useKanban } from '@/hooks/use-kanban';
 
@@ -351,36 +352,39 @@ export function Board() {
           onAddTask={() => setAddTaskOpen(true)}
         />
         <div className="flex-1" />
-        {selectedTask && (
-          <div className="pr-4 flex items-center gap-1">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setViewMode('terminal')}
-              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider transition-colors ${
-                viewMode === 'terminal'
-                  ? 'bg-[rgba(255,255,255,0.1)] text-[#00FF00]'
-                  : 'text-[rgba(255,255,255,0.4)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)]'
-              }`}
-            >
-              <Terminal className="h-3 w-3 mr-1" />
-              terminal
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setViewMode('diff')}
-              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider transition-colors ${
-                viewMode === 'diff'
-                  ? 'bg-[rgba(255,255,255,0.1)] text-[#00FF00]'
-                  : 'text-[rgba(255,255,255,0.4)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)]'
-              }`}
-            >
-              <FileDiff className="h-3 w-3 mr-1" />
-              diff
-            </Button>
-          </div>
-        )}
+        <div className="pr-4 flex items-center gap-2">
+          <SettingsSheet />
+          {selectedTask && (
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setViewMode('terminal')}
+                className={`px-3 py-1 text-xs font-mono uppercase tracking-wider transition-colors ${
+                  viewMode === 'terminal'
+                    ? 'bg-[rgba(255,255,255,0.1)] text-[#00FF00]'
+                    : 'text-[rgba(255,255,255,0.4)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)]'
+                }`}
+              >
+                <Terminal className="h-3 w-3 mr-1" />
+                terminal
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setViewMode('diff')}
+                className={`px-3 py-1 text-xs font-mono uppercase tracking-wider transition-colors ${
+                  viewMode === 'diff'
+                    ? 'bg-[rgba(255,255,255,0.1)] text-[#00FF00]'
+                    : 'text-[rgba(255,255,255,0.4)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)]'
+                }`}
+              >
+                <FileDiff className="h-3 w-3 mr-1" />
+                diff
+              </Button>
+            </>
+          )}
+        </div>
       </header>
 
       <div className="flex-1 overflow-hidden relative">
