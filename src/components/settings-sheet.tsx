@@ -11,8 +11,6 @@ import { useUpdate } from '@/hooks/use-update';
 
 interface Settings {
   llmApiKey?: string | null;
-  llmBaseUrl?: string | null;
-  llmModel?: string | null;
 }
 
 interface SettingsSheetProps {
@@ -27,10 +25,8 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
 
   const [settings, setSettings] = useState<Settings>({});
   const [llmApiKeyInput, setLlmApiKeyInput] = useState('');
-  const [llmBaseUrlInput, setLlmBaseUrlInput] = useState('');
-  const [llmModelInput, setLlmModelInput] = useState('');
   const [showLlmApiKey, setShowLlmApiKey] = useState(false);
-  const [savingAi, setSavingAi] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [currentVersion, setCurrentVersion] = useState<string>('');
 
   useEffect(() => {
@@ -40,53 +36,33 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
   const { status, updateInfo, downloadProgress, checkUpdate, downloadUpdate, restart } =
     useUpdate();
 
-  // Load settings on mount and when sheet opens
   useEffect(() => {
     if (open) {
       invoke<Settings>('get_settings')
         .then((s) => {
           setSettings(s);
           setLlmApiKeyInput(s.llmApiKey || '');
-          setLlmBaseUrlInput(s.llmBaseUrl || '');
-          setLlmModelInput(s.llmModel || '');
         })
         .catch(console.error);
     }
   }, [open]);
 
-  const aiDirty =
-    llmApiKeyInput !== (settings.llmApiKey || '') ||
-    llmBaseUrlInput !== (settings.llmBaseUrl || '') ||
-    llmModelInput !== (settings.llmModel || '');
+  const isDirty = llmApiKeyInput !== (settings.llmApiKey || '');
 
-  const saveAiSettings = async () => {
-    const payload: Record<string, string | null> = {};
+  const saveSettings = async () => {
+    if (!isDirty) return;
 
-    if (llmApiKeyInput !== (settings.llmApiKey || '')) {
-      payload.llmApiKey = llmApiKeyInput || null;
-    }
-    if (llmBaseUrlInput !== (settings.llmBaseUrl || '')) {
-      payload.llmBaseUrl = llmBaseUrlInput || null;
-    }
-    if (llmModelInput !== (settings.llmModel || '')) {
-      payload.llmModel = llmModelInput || null;
-    }
-
-    if (Object.keys(payload).length === 0) {
-      return;
-    }
-
-    setSavingAi(true);
+    setSaving(true);
     try {
-      const updated = await invoke<Settings>('update_settings', payload);
+      const updated = await invoke<Settings>('update_settings', {
+        llmApiKey: llmApiKeyInput || null,
+      });
       setSettings(updated);
       setLlmApiKeyInput(updated.llmApiKey || '');
-      setLlmBaseUrlInput(updated.llmBaseUrl || '');
-      setLlmModelInput(updated.llmModel || '');
     } catch (err) {
-      console.error('Failed to save AI settings:', err);
+      console.error('Failed to save settings:', err);
     } finally {
-      setSavingAi(false);
+      setSaving(false);
     }
   };
 
@@ -131,7 +107,6 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
                 </span>
               </div>
 
-              {/* Update Status */}
               {status === 'available' && updateInfo && (
                 <div className="pt-2 border-t border-[rgba(255,255,255,0.15)] space-y-2">
                   <div className="flex items-center justify-between">
@@ -195,7 +170,6 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
                 </div>
               )}
 
-              {/* Check for Updates Button */}
               {(status === 'idle' || status === 'error') && (
                 <Button
                   size="sm"
@@ -222,6 +196,7 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
             </div>
           </div>
 
+          {/* OpenAI Section */}
           <div className="space-y-3">
             <h3 className="text-xs text-[rgba(255,255,255,0.6)] font-mono uppercase tracking-wider font-[Helvetica_Neue,Arial,sans-serif]">
               OpenAI
@@ -256,48 +231,14 @@ export function SettingsSheet({ open: controlledOpen, onOpenChange }: SettingsSh
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="llm-base-url"
-                  className="text-xs font-mono text-[rgba(255,255,255,0.5)]"
-                >
-                  Base URL
-                </Label>
-                <Input
-                  id="llm-base-url"
-                  name="llmBaseUrl"
-                  value={llmBaseUrlInput}
-                  onChange={(e) => setLlmBaseUrlInput(e.target.value)}
-                  placeholder="https://api.openai.com"
-                  className="font-mono text-xs"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label
-                  htmlFor="llm-model"
-                  className="text-xs font-mono text-[rgba(255,255,255,0.5)]"
-                >
-                  Model
-                </Label>
-                <Input
-                  id="llm-model"
-                  name="llmModel"
-                  value={llmModelInput}
-                  onChange={(e) => setLlmModelInput(e.target.value)}
-                  placeholder="gpt-4o-mini"
-                  className="font-mono text-xs"
-                />
-              </div>
-
-              {aiDirty && (
+              {isDirty && (
                 <Button
                   size="sm"
                   className="w-full bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.8)] border border-[rgba(255,255,255,0.3)]"
-                  onClick={saveAiSettings}
-                  disabled={savingAi}
+                  onClick={saveSettings}
+                  disabled={saving}
                 >
-                  {savingAi ? 'Saving...' : 'Save AI Settings'}
+                  {saving ? 'Saving...' : 'Save'}
                 </Button>
               )}
             </div>

@@ -34,7 +34,7 @@ describe('SettingsSheet', () => {
   it('renders settings sheet with existing settings', async () => {
     const mockVersion = '1.0.0';
     const mockSettings = {
-      llmModel: 'gpt-4o-mini',
+      llmApiKey: 'sk-test-key',
     };
 
     const { getVersion } = await import('@tauri-apps/api/app');
@@ -52,100 +52,99 @@ describe('SettingsSheet', () => {
 
   it('loads settings on sheet open', async () => {
     const mockSettings = {
-      llmModel: 'gpt-4o',
+      llmApiKey: 'sk-test-key',
     };
 
     vi.mocked((await import('@tauri-apps/api/core')).invoke).mockResolvedValueOnce(mockSettings);
 
     render(<SettingsSheet open={true} />);
 
-    const modelInput = await screen.findByDisplayValue('gpt-4o');
-    expect(modelInput).toBeInTheDocument();
+    const apiKeyInput = await screen.findByDisplayValue('sk-test-key');
+    expect(apiKeyInput).toBeInTheDocument();
   });
 
   it('hides save button when no changes', async () => {
     const mockSettings = {
-      llmModel: 'gpt-4o-mini',
+      llmApiKey: 'sk-test-key',
     };
 
     vi.mocked((await import('@tauri-apps/api/core')).invoke).mockResolvedValueOnce(mockSettings);
 
     render(<SettingsSheet open={true} />);
 
-    await screen.findByDisplayValue('gpt-4o-mini');
+    await screen.findByDisplayValue('sk-test-key');
 
-    expect(screen.queryByText(/Save AI Settings/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Save/i)).not.toBeInTheDocument();
   });
 
-  it('shows save button when field is modified', async () => {
+  it('shows save button when API key is modified', async () => {
     const mockSettings = {
-      llmModel: 'gpt-4o-mini',
+      llmApiKey: 'sk-test-key',
     };
 
     vi.mocked((await import('@tauri-apps/api/core')).invoke).mockResolvedValueOnce(mockSettings);
 
     render(<SettingsSheet open={true} />);
 
-    const input = await screen.findByDisplayValue('gpt-4o-mini');
+    const input = await screen.findByDisplayValue('sk-test-key');
 
-    fireEvent.change(input, { target: { value: 'gpt-4o' } });
+    fireEvent.change(input, { target: { value: 'sk-new-key' } });
 
-    const saveButton = await screen.findByText(/Save AI Settings/i);
+    const saveButton = await screen.findByText(/Save$/i);
     expect(saveButton).not.toBeDisabled();
   });
 
   it('hides save button when field is reverted', async () => {
     const mockSettings = {
-      llmModel: 'gpt-4o-mini',
+      llmApiKey: 'sk-test-key',
     };
 
     vi.mocked((await import('@tauri-apps/api/core')).invoke).mockResolvedValueOnce(mockSettings);
 
     render(<SettingsSheet open={true} />);
 
-    const input = await screen.findByDisplayValue('gpt-4o-mini');
+    const input = await screen.findByDisplayValue('sk-test-key');
 
-    fireEvent.change(input, { target: { value: 'gpt-4o' } });
+    fireEvent.change(input, { target: { value: 'sk-new-key' } });
 
-    await screen.findByText(/Save AI Settings/i);
+    await screen.findByText(/Save$/i);
 
-    fireEvent.change(input, { target: { value: 'gpt-4o-mini' } });
+    fireEvent.change(input, { target: { value: 'sk-test-key' } });
 
     await waitFor(() => {
-      expect(screen.queryByText(/Save AI Settings/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Save$/i)).not.toBeInTheDocument();
     });
   });
 
-  it('saves payload with llmModel value', async () => {
+  it('saves payload with llmApiKey value', async () => {
     const mockSettings = {
-      llmModel: 'gpt-4o-mini',
+      llmApiKey: 'sk-test-key',
     };
-    const updatedModel = 'gpt-4o';
-    const expectedPayload = { llmModel: updatedModel };
+    const updatedKey = 'sk-new-key';
 
     vi.mocked((await import('@tauri-apps/api/core')).invoke)
       .mockResolvedValueOnce(mockSettings)
-      .mockResolvedValueOnce({ llmModel: updatedModel });
+      .mockResolvedValueOnce({ llmApiKey: updatedKey });
 
     render(<SettingsSheet open={true} />);
 
-    const input = await screen.findByDisplayValue('gpt-4o-mini');
+    const input = await screen.findByDisplayValue('sk-test-key');
 
-    fireEvent.change(input, { target: { value: updatedModel } });
+    fireEvent.change(input, { target: { value: updatedKey } });
 
-    const saveButton = await screen.findByText(/Save AI Settings/i);
+    const saveButton = await screen.findByText(/Save$/i);
     fireEvent.click(saveButton);
 
     const invoke = (await import('@tauri-apps/api/core')).invoke;
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledTimes(2);
-      expect(invoke).toHaveBeenNthCalledWith(2, 'update_settings', expectedPayload);
+      expect(invoke).toHaveBeenNthCalledWith(2, 'update_settings', { llmApiKey: updatedKey });
     });
   });
 
   it('sets saving state during save operation', async () => {
     const mockSettings = {
-      llmModel: 'gpt-4o-mini',
+      llmApiKey: 'sk-test-key',
     };
     const { invoke } = await import('@tauri-apps/api/core');
 
@@ -155,11 +154,11 @@ describe('SettingsSheet', () => {
 
     render(<SettingsSheet open={true} />);
 
-    const input = await screen.findByDisplayValue('gpt-4o-mini');
+    const input = await screen.findByDisplayValue('sk-test-key');
 
-    fireEvent.change(input, { target: { value: 'gpt-4o' } });
+    fireEvent.change(input, { target: { value: 'sk-new-key' } });
 
-    const saveButton = await screen.findByText(/Save AI Settings/i);
+    const saveButton = await screen.findByText(/Save$/i);
     fireEvent.click(saveButton);
 
     await waitFor(() => {

@@ -22,24 +22,16 @@ test.describe('Settings Persistence', () => {
     await expect(page.getByRole('heading', { name: 'OpenAI' })).toBeVisible();
   });
 
-  test('OpenAI fields are present and editable', async ({ page }) => {
+  test('API key field is present and editable', async ({ page }) => {
     await openSettings(page);
 
     const apiKeyInput = page.locator('input[name="llmApiKey"]');
-    const baseUrlInput = page.locator('input[name="llmBaseUrl"]');
-    const modelInput = page.locator('input[name="llmModel"]');
 
     await expect(apiKeyInput).toBeVisible();
-    await expect(baseUrlInput).toBeVisible();
-    await expect(modelInput).toBeVisible();
 
     await apiKeyInput.fill('sk-test-key-12345');
-    await baseUrlInput.fill('https://api.openai.com');
-    await modelInput.fill('gpt-4o-mini');
 
     await expect(apiKeyInput).toHaveValue('sk-test-key-12345');
-    await expect(baseUrlInput).toHaveValue('https://api.openai.com');
-    await expect(modelInput).toHaveValue('gpt-4o-mini');
   });
 
   test('API key field is masked by default', async ({ page }) => {
@@ -64,15 +56,15 @@ test.describe('Settings Persistence', () => {
     await expect(apiKeyInput).toHaveAttribute('type', 'password');
   });
 
-  test('save button appears when AI fields are modified', async ({ page }) => {
+  test('save button appears when API key is modified', async ({ page }) => {
     await openSettings(page);
 
-    const modelInput = page.locator('input[name="llmModel"]');
-    const saveButton = page.getByText('Save AI Settings');
+    const apiKeyInput = page.locator('input[name="llmApiKey"]');
+    const saveButton = page.getByText('Save');
 
     await expect(saveButton).not.toBeVisible();
 
-    await modelInput.fill('gpt-4o');
+    await apiKeyInput.fill('sk-new-key');
 
     await expect(saveButton).toBeVisible();
     await expect(saveButton).not.toBeDisabled();
