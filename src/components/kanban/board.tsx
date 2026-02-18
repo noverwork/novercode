@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { FileDiff, Terminal } from 'lucide-react';
+import { FileDiff, Settings, Terminal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Breadcrumbs } from '@/components/breadcrumbs';
@@ -9,9 +9,9 @@ import { AddTaskDialog } from '@/components/kanban/add-task-dialog';
 import { DiffView } from '@/components/kanban/diff-view';
 import { ProgressDialog } from '@/components/kanban/progress-dialog';
 import { TerminalPanel } from '@/components/kanban/terminal-panel';
-import { SettingsSheet } from '@/components/settings-sheet';
 import { Button } from '@/components/ui/button';
 import { useKanban } from '@/hooks/use-kanban';
+import { SettingsPage } from '@/pages/settings-page';
 
 type ViewMode = 'terminal' | 'diff';
 
@@ -91,6 +91,7 @@ export function Board() {
   const [progressOperation, setProgressOperation] = useState<'copy' | 'delete' | null>(null);
   const [copyProgress, setCopyProgress] = useState<CopyProgressData | undefined>(undefined);
   const [deleteProgress, setDeleteProgress] = useState<DeleteProgressData | undefined>(undefined);
+  const [showSettings, setShowSettings] = useState(false);
   const selectionRequestRef = useRef(0);
 
   const handleProgressDialogOpenChange = useCallback((open: boolean) => {
@@ -353,7 +354,15 @@ export function Board() {
         />
         <div className="flex-1" />
         <div className="pr-4 flex items-center gap-2">
-          <SettingsSheet />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowSettings(true)}
+            className="px-3 py-1 text-xs font-mono uppercase tracking-wider text-[rgba(255,255,255,0.4)] hover:text-[#FFFFFF] hover:bg-[rgba(255,255,255,0.05)]"
+          >
+            <Settings className="h-3 w-3 mr-1" />
+            settings
+          </Button>
           {selectedTask && (
             <>
               <Button
@@ -431,6 +440,12 @@ export function Board() {
         progress={progressOperation === 'delete' ? deleteProgress : copyProgress}
         operation={progressOperation ?? undefined}
       />
+
+      {showSettings && (
+        <div className="fixed inset-0 z-50 bg-[#0a0a0a]">
+          <SettingsPage onBack={() => setShowSettings(false)} />
+        </div>
+      )}
     </div>
   );
 }
