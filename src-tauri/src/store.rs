@@ -28,6 +28,8 @@ pub struct Settings {
   pub asr_model: Option<String>,
   #[serde(default)]
   pub asr_language: Option<String>,
+  #[serde(default)]
+  pub asr_shortcut: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -280,6 +282,7 @@ pub fn update_settings(
   llm_model: Option<Option<String>>,
   asr_model: Option<Option<String>>,
   asr_language: Option<Option<String>>,
+  asr_shortcut: Option<Option<String>>,
 ) -> Result<Settings, String> {
   let mut settings = lock_or_recover(&state.settings);
 
@@ -301,6 +304,10 @@ pub fn update_settings(
 
   if let Some(value) = asr_language {
     settings.asr_language = value;
+  }
+
+  if let Some(value) = asr_shortcut {
+    settings.asr_shortcut = value;
   }
 
   let updated = settings.clone();

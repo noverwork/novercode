@@ -1,9 +1,8 @@
 import { Plus, Terminal, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { VoiceInputButton } from '@/components/voice-input-button';
+import { VoiceStatusIndicator } from '@/components/voice-status-indicator';
 import { useActiveTerminalSession } from '@/hooks/use-active-terminal-session';
-import { useVoiceToTerminal } from '@/hooks/use-voice-to-terminal';
 import { terminalSessionManager } from '@/lib/terminal-session-manager';
 
 import { XtermTerminal } from './xterm-terminal';
@@ -45,8 +44,7 @@ function getNextTerminalOrdinal(terminals: TerminalInfo[]): number {
 }
 
 export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanelProps) {
-  const { setActiveSessionId } = useActiveTerminalSession();
-  const { transcribeAndInsert } = useVoiceToTerminal();
+  const { setActiveSessionId, isRecording, isTranscribing } = useActiveTerminalSession();
   const [taskTerminals, setTaskTerminals] = useState<Record<string, TaskTerminalState>>({});
   const currentState = taskTerminals[taskId] ?? EMPTY_STATE;
   const terminals = currentState.terminals;
@@ -185,10 +183,6 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
             </div>
           ))}
         </div>
-
-        <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.15)]">
-          <VoiceInputButton onTranscriptReady={transcribeAndInsert} disabled={!activeTerminalId} />
-        </div>
       </div>
 
       <div className="flex-1 overflow-hidden p-4">
@@ -201,6 +195,8 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
           />
         )}
       </div>
+
+      <VoiceStatusIndicator isRecording={isRecording} isTranscribing={isTranscribing} />
     </div>
   );
 }
