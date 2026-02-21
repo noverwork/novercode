@@ -29,7 +29,7 @@ const TERMINAL_OPTIONS = {
   },
 } as const;
 
-const ASR_SHORTCUT_KEY = ' ';
+const ASR_SHORTCUT_CODE = 'Space';
 const ASR_SHORTCUT_ALT = true;
 
 export function XtermTerminal({ taskId, workingDir, terminalSessionId }: XtermTerminalProps) {
@@ -46,6 +46,14 @@ export function XtermTerminal({ taskId, workingDir, terminalSessionId }: XtermTe
     reset,
   } = usePushToTalk();
   const { transcribeAndInsert, isTranscribing: vttIsTranscribing } = useVoiceToTerminal();
+
+  const startRecordingRef = useRef(startRecording);
+  const stopRecordingRef = useRef(stopRecording);
+
+  useEffect(() => {
+    startRecordingRef.current = startRecording;
+    stopRecordingRef.current = stopRecording;
+  }, [startRecording, stopRecording]);
 
   useEffect(() => {
     setActiveSessionId(sessionId);
@@ -75,25 +83,25 @@ export function XtermTerminal({ taskId, workingDir, terminalSessionId }: XtermTe
     let resizeFrame: number | null = null;
 
     const customKeyHandler = (event: KeyboardEvent): boolean => {
-      if (event.key === ASR_SHORTCUT_KEY && event.altKey === ASR_SHORTCUT_ALT) {
-        if (event.type === 'keydown') {
-          if (!isRecordingRef.current) {
-            isRecordingRef.current = true;
-            startRecording();
-          }
-        }
-        return false;
-      }
-      return true;
-    };
+      const isAsrShortcut = event.code === ASR_SHORTCUT_CODE && event.altKey === ASR_SHORTCUT_ALT;
 
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.key === ASR_SHORTCUT_KEY && event.altKey === ASR_SHORTCUT_ALT) {
+      if (!isAsrShortcut) {
+        return true;
+      }
+
+      if (event.type === 'keydown') {
+        if (!isRecordingRef.current) {
+          isRecordingRef.current = true;
+          startRecordingRef.current();
+        }
+      } else if (event.type === 'keyup') {
         if (isRecordingRef.current) {
           isRecordingRef.current = false;
-          stopRecording();
+          stopRecordingRef.current();
         }
       }
+
+      return false;
     };
 
     void terminalSessionManager
@@ -125,7 +133,6 @@ export function XtermTerminal({ taskId, workingDir, terminalSessionId }: XtermTe
     const resizeObserver = new ResizeObserver(handleWindowResize);
     resizeObserver.observe(container);
     window.addEventListener('resize', handleWindowResize);
-    window.addEventListener('keyup', handleKeyUp);
     scheduleFit();
 
     return () => {
@@ -133,11 +140,10 @@ export function XtermTerminal({ taskId, workingDir, terminalSessionId }: XtermTe
         cancelAnimationFrame(resizeFrame);
       }
       window.removeEventListener('resize', handleWindowResize);
-      window.removeEventListener('keyup', handleKeyUp);
       resizeObserver.disconnect();
       terminalSessionManager.detachFromContainer(sessionId);
     };
-  }, [sessionId, workingDir, startRecording, stopRecording]);
+  }, [sessionId, workingDir]);
 
   return (
     <div

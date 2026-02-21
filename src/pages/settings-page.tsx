@@ -48,7 +48,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   const [micPermission, setMicPermission] = useState<MicPermissionState>('unknown');
   const [accessibilityGranted, setAccessibilityGranted] = useState<boolean | null>(null);
   const [isRecordingShortcut, setIsRecordingShortcut] = useState(false);
-  const shortcutInputRef = useRef<HTMLInputElement>(null);
+  const shortcutInputRef = useRef<HTMLDivElement>(null);
 
   const { status, updateInfo, downloadProgress, checkUpdate, downloadUpdate, restart } =
     useUpdate();
@@ -118,17 +118,31 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     if (e.metaKey) parts.push(IS_MACOS ? 'Command' : 'Super');
 
     let key = e.key;
-    if (key === ' ') key = 'Space';
-    else if (key === 'Escape') key = 'Escape';
-    else if (key === 'Enter') key = 'Return';
-    else if (key === 'Tab') key = 'Tab';
-    else if (key === 'Backspace') key = 'Backspace';
-    else if (key === 'Delete') key = 'Delete';
-    else if (key === 'ArrowUp') key = 'Up';
-    else if (key === 'ArrowDown') key = 'Down';
-    else if (key === 'ArrowLeft') key = 'Left';
-    else if (key === 'ArrowRight') key = 'Right';
-    else if (key.length === 1) key = key.toUpperCase();
+    const code = e.code;
+
+    if (code === 'Space' || key === ' ') {
+      key = 'Space';
+    } else if (key === 'Escape') {
+      key = 'Escape';
+    } else if (key === 'Enter') {
+      key = 'Return';
+    } else if (key === 'Tab') {
+      key = 'Tab';
+    } else if (key === 'Backspace') {
+      key = 'Backspace';
+    } else if (key === 'Delete') {
+      key = 'Delete';
+    } else if (code === 'ArrowUp' || key === 'ArrowUp') {
+      key = 'Up';
+    } else if (code === 'ArrowDown' || key === 'ArrowDown') {
+      key = 'Down';
+    } else if (code === 'ArrowLeft' || key === 'ArrowLeft') {
+      key = 'Left';
+    } else if (code === 'ArrowRight' || key === 'ArrowRight') {
+      key = 'Right';
+    } else if (key.length === 1) {
+      key = key.toUpperCase();
+    }
 
     if (!['Control', 'Alt', 'Shift', 'Meta', 'Option', 'Command'].includes(key)) {
       parts.push(key);
@@ -164,7 +178,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
   const startRecordingShortcut = useCallback(() => {
     setIsRecordingShortcut(true);
-    shortcutInputRef.current?.focus();
+    setTimeout(() => shortcutInputRef.current?.focus(), 0);
   }, []);
 
   const isDirty =
@@ -367,20 +381,19 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
                 Voice Input Shortcut
               </Label>
               <div className="flex gap-2">
-                <input
+                <div
                   ref={shortcutInputRef}
-                  id="asr-shortcut"
-                  value={isRecordingShortcut ? 'Press shortcut...' : asrShortcutInput || 'Not set'}
-                  readOnly
+                  tabIndex={0}
                   onKeyDown={handleShortcutKeyDown}
                   onBlur={() => setIsRecordingShortcut(false)}
                   className={`flex-1 px-3 py-2 text-xs font-mono rounded cursor-pointer ${
                     isRecordingShortcut
                       ? 'bg-[#00FF00]/10 border-[#00FF00] text-[#00FF00]'
                       : 'bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.2)] text-white'
-                  } border focus:outline-none`}
-                  placeholder="Click to record..."
-                />
+                  } border focus:outline-none flex items-center`}
+                >
+                  {isRecordingShortcut ? 'Press shortcut...' : asrShortcutInput || 'Not set'}
+                </div>
                 <Button
                   size="sm"
                   variant="outline"

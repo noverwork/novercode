@@ -1,7 +1,6 @@
 import { ChevronDown, Folder, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { Button } from '@/components/ui/button';
 import type { Project, Task } from '@/hooks/use-kanban';
 
 type OpenMenu = 'project' | 'task' | null;
@@ -51,6 +50,7 @@ export function Breadcrumbs({
     <div className="flex items-center gap-2 px-4 py-2" ref={dropdownRef}>
       <div className="relative">
         <button
+          type="button"
           onClick={() => setOpenMenu((prev) => (prev === 'project' ? null : 'project'))}
           className="flex items-center gap-1.5 rounded px-2 py-1 text-sm font-mono text-[rgba(255,255,255,0.9)] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
         >
@@ -68,13 +68,21 @@ export function Breadcrumbs({
               <>
                 <div className="space-y-1">
                   {projects.map((project) => (
-                    <button
+                    <div
                       key={project.id}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          onProjectSelect(project.id);
+                          setOpenMenu(null);
+                        }
+                      }}
                       onClick={() => {
                         onProjectSelect(project.id);
                         setOpenMenu(null);
                       }}
-                      className={`group flex items-center gap-2 px-3 py-2 font-mono text-sm transition-colors w-full text-left ${
+                      className={`group flex items-center gap-2 px-3 py-2 font-mono text-sm transition-colors w-full cursor-pointer ${
                         currentProject?.id === project.id
                           ? 'bg-[rgba(255,255,255,0.1)] text-[#FFFFFF]'
                           : 'text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#FFFFFF]'
@@ -83,23 +91,30 @@ export function Breadcrumbs({
                       <Folder className="h-3 w-3 shrink-0" />
                       <span className="truncate flex-1">{project.name}</span>
                       {onDeleteProject && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5 opacity-0 group-hover:opacity-100 text-[rgba(255,255,255,0.4)] hover:text-[#FF0000] hover:bg-transparent shrink-0"
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100 text-[rgba(255,255,255,0.4)] hover:text-[#FF0000] shrink-0 flex items-center justify-center cursor-pointer"
                           onClick={(e) => {
                             e.stopPropagation();
                             onDeleteProject(project.id);
                           }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.stopPropagation();
+                              onDeleteProject(project.id);
+                            }
+                          }}
                         >
                           <Trash2 className="h-3 w-3" />
-                        </Button>
+                        </span>
                       )}
-                    </button>
+                    </div>
                   ))}
                 </div>
                 <div className="border-t border-[rgba(255,255,255,0.15)] pt-2 mt-2">
                   <button
+                    type="button"
                     onClick={() => {
                       onAddProject?.();
                       setOpenMenu(null);
@@ -120,6 +135,7 @@ export function Breadcrumbs({
 
       <div className="relative">
         <button
+          type="button"
           onClick={() => setOpenMenu((prev) => (prev === 'task' ? null : 'task'))}
           className="flex items-center gap-1.5 rounded px-2 py-1 text-sm font-mono hover:bg-[rgba(255,255,255,0.05)] transition-colors"
           disabled={!currentProject}
@@ -141,13 +157,21 @@ export function Breadcrumbs({
             ) : (
               <div className="space-y-1">
                 {tasks.map((task) => (
-                  <button
+                  <div
                     key={task.id}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        onTaskSelect(task.id);
+                        setOpenMenu(null);
+                      }
+                    }}
                     onClick={() => {
                       onTaskSelect(task.id);
                       setOpenMenu(null);
                     }}
-                    className={`group flex items-center gap-2 px-3 py-2 font-mono text-sm transition-colors w-full text-left ${
+                    className={`group flex items-center gap-2 px-3 py-2 font-mono text-sm transition-colors w-full cursor-pointer ${
                       selectedTask?.id === task.id
                         ? 'bg-[rgba(255,255,255,0.1)] text-[#FFFFFF] border border-[rgba(255,255,255,0.3)]'
                         : 'text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#FFFFFF] border border-transparent'
@@ -163,24 +187,31 @@ export function Breadcrumbs({
                       )}
                     </div>
                     {onDeleteTask && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 text-[rgba(255,255,255,0.4)] hover:text-[#FF0000] hover:bg-[rgba(255,0,0,0.1)] shrink-0"
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 text-[rgba(255,255,255,0.4)] hover:text-[#FF0000] shrink-0 flex items-center justify-center cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
                           onDeleteTask(task.id);
                         }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.stopPropagation();
+                            onDeleteTask(task.id);
+                          }
+                        }}
                       >
                         <Trash2 className="h-3 w-3" />
-                      </Button>
+                      </span>
                     )}
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
             <div className="border-t border-[rgba(255,255,255,0.15)] pt-2 mt-2">
               <button
+                type="button"
                 onClick={() => {
                   onAddTask?.();
                   setOpenMenu(null);

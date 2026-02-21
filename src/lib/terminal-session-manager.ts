@@ -61,6 +61,10 @@ class TerminalSessionManager {
       existing.workingDir = options.workingDir;
       this.touchLru(sessionId);
       this.attachToContainer(sessionId, container);
+      if (options.customKeyHandler) {
+        existing.terminal.attachCustomKeyEventHandler(options.customKeyHandler);
+        existing.customKeyHandler = options.customKeyHandler;
+      }
       await this.fitAndResize(sessionId);
       return existing.terminal;
     }
