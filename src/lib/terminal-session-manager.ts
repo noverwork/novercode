@@ -14,7 +14,6 @@ interface TerminalOutputPayload {
 export interface TerminalSessionOptions {
   workingDir?: string;
   terminalOptions?: ConstructorParameters<typeof Terminal>[0];
-  customKeyHandler?: (event: KeyboardEvent) => boolean;
 }
 
 interface TerminalSessionRecord {
@@ -35,7 +34,6 @@ interface TerminalSessionRecord {
     mousemove: (e: MouseEvent) => void;
     wheel: (e: WheelEvent) => void;
   } | null;
-  customKeyHandler?: (event: KeyboardEvent) => boolean;
 }
 
 function decodeBase64Bytes(base64: string): Uint8Array {
@@ -61,10 +59,6 @@ class TerminalSessionManager {
       existing.workingDir = options.workingDir;
       this.touchLru(sessionId);
       this.attachToContainer(sessionId, container);
-      if (options.customKeyHandler) {
-        existing.terminal.attachCustomKeyEventHandler(options.customKeyHandler);
-        existing.customKeyHandler = options.customKeyHandler;
-      }
       await this.fitAndResize(sessionId);
       return existing.terminal;
     }
@@ -78,10 +72,6 @@ class TerminalSessionManager {
     terminal.open(container);
     fitAddon.fit();
 
-    if (options.customKeyHandler) {
-      terminal.attachCustomKeyEventHandler(options.customKeyHandler);
-    }
-
     const session: TerminalSessionRecord = {
       terminal,
       fitAddon,
@@ -89,7 +79,6 @@ class TerminalSessionManager {
       workingDir: options.workingDir,
       sessionReady: false,
       unlistenOutput: null,
-      customKeyHandler: options.customKeyHandler,
       dataDisposable: terminal.onData((data) => {
         const bytes = Array.from(textEncoder.encode(data));
         void invoke('terminal_write', { id: sessionId, data: bytes }).catch((error) => {

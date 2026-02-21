@@ -8,10 +8,6 @@
     "opener:default",
     "store:default",
     "dialog:default",
-    "updater:default",
-    "global-shortcut:allow-register",
-    "global-shortcut:allow-unregister",
-    "global-shortcut:allow-is-registered",
-    "macos-permissions:default"
+    "updater:default"
   ]
 }

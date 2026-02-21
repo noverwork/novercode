@@ -65,8 +65,6 @@ parking_lot = "0.12"
 lazy_static = "1.4"
 tauri-plugin-updater = "2.9.0"
 tauri-plugin-process = "2.3.1"
-tauri-plugin-global-shortcut = "2"
-tauri-plugin-macos-permissions = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"

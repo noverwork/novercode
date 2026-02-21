@@ -1,7 +1,6 @@
 import { Plus, Terminal, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { VoiceStatusIndicator } from '@/components/voice-status-indicator';
 import { useActiveTerminalSession } from '@/hooks/use-active-terminal-session';
 import { terminalSessionManager } from '@/lib/terminal-session-manager';
 
@@ -44,7 +43,7 @@ function getNextTerminalOrdinal(terminals: TerminalInfo[]): number {
 }
 
 export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanelProps) {
-  const { setActiveSessionId, isRecording, isTranscribing } = useActiveTerminalSession();
+  const { setActiveSessionId } = useActiveTerminalSession();
   const [taskTerminals, setTaskTerminals] = useState<Record<string, TaskTerminalState>>({});
   const currentState = taskTerminals[taskId] ?? EMPTY_STATE;
   const terminals = currentState.terminals;
@@ -195,8 +194,6 @@ export function TerminalPanel({ taskId, workingDir, isTaskReady }: TerminalPanel
           />
         )}
       </div>
-
-      <VoiceStatusIndicator isRecording={isRecording} isTranscribing={isTranscribing} />
     </div>
   );
 }

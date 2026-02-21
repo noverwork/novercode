@@ -12,13 +12,5 @@ export function useActiveTerminalSession() {
     activeSessionId: context.activeSessionId,
     hasActiveTerminal: context.activeSessionId !== null,
     setActiveSessionId: context.setActiveSessionId,
-    isRecording: context.isRecording,
-    isTranscribing: context.isTranscribing,
-    setIsRecording: context.setIsRecording,
-    setIsTranscribing: context.setIsTranscribing,
   };
-}
-
-export function useVoiceInput() {
-  return useActiveTerminalSession();
 }

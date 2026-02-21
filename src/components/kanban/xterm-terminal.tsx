@@ -3,8 +3,6 @@ import 'xterm/css/xterm.css';
 import { useEffect, useRef } from 'react';
 
 import { useActiveTerminalSession } from '@/hooks/use-active-terminal-session';
-import { usePushToTalk } from '@/hooks/use-push-to-talk';
-import { useVoiceToTerminal } from '@/hooks/use-voice-to-terminal';
 import { terminalSessionManager } from '@/lib/terminal-session-manager';
 
 interface XtermTerminalProps {
@@ -29,50 +27,15 @@ const TERMINAL_OPTIONS = {
   },
 } as const;
 
-const ASR_SHORTCUT_CODE = 'Space';
-const ASR_SHORTCUT_ALT = true;
-
 export function XtermTerminal({ taskId, workingDir, terminalSessionId }: XtermTerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionId = terminalSessionId ?? taskId;
-  const isRecordingRef = useRef(false);
 
-  const { setActiveSessionId, setIsRecording, setIsTranscribing } = useActiveTerminalSession();
-  const {
-    isRecording: pttIsRecording,
-    startRecording,
-    stopRecording,
-    audioBlob,
-    reset,
-  } = usePushToTalk();
-  const { transcribeAndInsert, isTranscribing: vttIsTranscribing } = useVoiceToTerminal();
-
-  const startRecordingRef = useRef(startRecording);
-  const stopRecordingRef = useRef(stopRecording);
-
-  useEffect(() => {
-    startRecordingRef.current = startRecording;
-    stopRecordingRef.current = stopRecording;
-  }, [startRecording, stopRecording]);
+  const { setActiveSessionId } = useActiveTerminalSession();
 
   useEffect(() => {
     setActiveSessionId(sessionId);
   }, [sessionId, setActiveSessionId]);
-
-  useEffect(() => {
-    setIsRecording(pttIsRecording);
-  }, [pttIsRecording, setIsRecording]);
-
-  useEffect(() => {
-    setIsTranscribing(vttIsTranscribing);
-  }, [vttIsTranscribing, setIsTranscribing]);
-
-  useEffect(() => {
-    if (audioBlob) {
-      transcribeAndInsert(audioBlob);
-      reset();
-    }
-  }, [audioBlob, transcribeAndInsert, reset]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -82,33 +45,10 @@ export function XtermTerminal({ taskId, workingDir, terminalSessionId }: XtermTe
 
     let resizeFrame: number | null = null;
 
-    const customKeyHandler = (event: KeyboardEvent): boolean => {
-      const isAsrShortcut = event.code === ASR_SHORTCUT_CODE && event.altKey === ASR_SHORTCUT_ALT;
-
-      if (!isAsrShortcut) {
-        return true;
-      }
-
-      if (event.type === 'keydown') {
-        if (!isRecordingRef.current) {
-          isRecordingRef.current = true;
-          startRecordingRef.current();
-        }
-      } else if (event.type === 'keyup') {
-        if (isRecordingRef.current) {
-          isRecordingRef.current = false;
-          stopRecordingRef.current();
-        }
-      }
-
-      return false;
-    };
-
     void terminalSessionManager
       .getOrCreateTerminal(sessionId, container, {
         workingDir,
         terminalOptions: TERMINAL_OPTIONS,
-        customKeyHandler,
       })
       .then(async () => {
         terminalSessionManager.focus(sessionId);

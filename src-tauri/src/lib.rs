@@ -1,7 +1,6 @@
 pub mod agent;
 pub mod store;
 pub mod terminal;
-pub mod transcription;
 pub mod worktree;
 
 use serde::Serialize;
@@ -120,26 +119,12 @@ pub fn run() {
 
   tracing::info!("Novercode starting...");
 
-  #[cfg(target_os = "macos")]
-  let builder = tauri::Builder::default()
+  tauri::Builder::default()
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_store::Builder::default().build())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
-    .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-    .plugin(tauri_plugin_macos_permissions::init());
-
-  #[cfg(not(target_os = "macos"))]
-  let builder = tauri::Builder::default()
-    .plugin(tauri_plugin_opener::init())
-    .plugin(tauri_plugin_store::Builder::default().build())
-    .plugin(tauri_plugin_dialog::init())
-    .plugin(tauri_plugin_updater::Builder::new().build())
-    .plugin(tauri_plugin_process::init())
-    .plugin(tauri_plugin_global_shortcut::Builder::new().build());
-
-  builder
     .manage(store::StoreState::default())
     .setup(|app| {
       store::init_store(app.handle())?;
@@ -171,7 +156,6 @@ pub fn run() {
       terminal::terminal_kill,
       terminal::terminal_kill_task_sessions,
       terminal::terminal_scroll,
-      transcription::transcribe_audio,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
